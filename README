@@ -1,0 +1,79 @@
+NAME
+
+  needleman-wunsch - align two strings with the Needleman-Wunsch algorithm
+
+SYNOPSIS
+
+  needleman-wunsch [-hqt] s1 s2 m k d
+
+DESCRIPTION
+
+  needleman-wunsch is a utility for aligning two strings with the
+  Needleman-Wunsch algorithm.  By default, it computes the alignment for
+  the input strings (s1 and s2) and prints the resulting alignment.
+  This default printing can be suppressed with the '-q' option.  With
+  the '-t' option, needleman-wunsch will print the score table filled
+  during the algorithm's run.  If you want to make the table look nice,
+  pipe the output into a tool like awk, column, or perl.
+
+BUILDING
+
+  needleman-wunsch is all C99 and has no external dependencies.  Its makefile
+  uses no extensions to the POSIX syntax.
+
+  Just run `make'.
+
+EXAMPLE
+
+  $ needleman-wunsch -h
+  usage: needleman-wunsch [-hqt] s1 s2 m k d
+  Align two strings with the Needleman-Wunsch algorithm
+  arguments:
+    s1   first string to align
+    s2   second string to align
+    m   score for matching characters
+    k   penalty for mismatched characters
+    d   penalty for a gap
+  options:
+    -h   print this message
+    -q   be quiet; don't print an optimal alignment for the input strings
+    -t   print the scores table (pretty-print it with awk or column)
+  $ needleman-wunsch GT GT 1 1 1
+  GT
+  GT
+  $ needleman-wunsch GT GA 1 1 1
+  GT
+  GA
+  $ needleman-wunsch GAT GTA 1 1 1
+  G-AT
+  GTA-
+  $ needleman-wunsch GCATGCU GATTACA 1 1 1
+  GCA-TGCU
+  G-ATTACA
+  $ needleman-wunsch -t GCATGCU GATTACA 1 1 1
+  * * G C A T G C U
+  * 0(X) -1(<) -2(<) -3(<) -4(<) -5(<) -6(<) -7(<)
+  G -1(^) 1(\) 0(^) -1(^) -2(^) -3(\) -4(^) -5(^)
+  A -2(^) 0(<) 0(\) 1(\) 0(^) -1(^) -2(^) -3(^)
+  T -3(^) -1(<) -1(\) 0(<) 2(\) 1(^) 0(^) -1(^)
+  T -4(^) -2(<) -2(\) -1(<) 1(\) 1(\) 0(\) -1(\)
+  A -5(^) -3(<) -3(\) -1(\) 0(<) 0(\) 0(\) -1(\)
+  C -6(^) -4(<) -2(\) -2(<) -1(<) -1(\) 1(\) 0(^)
+  A -7(^) -5(<) -3(<) -1(\) -2(^) -2(\) 0(<) 0(\)
+  GCA-TGCU
+  G-ATTACA
+  $ needleman-wunsch -tq GCATGCU GATTACA 1 1 1 | awk '
+  > {
+  > for (i = 1; i <= NF; i++)
+  >     printf "%6s", $i
+  > printf "\n"
+  > }'
+       *     *     G     C     A     T     G     C     U
+       *  0(X) -1(<) -2(<) -3(<) -4(<) -5(<) -6(<) -7(<)
+       G -1(^)  1(\)  0(^) -1(^) -2(^) -3(\) -4(^) -5(^)
+       A -2(^)  0(<)  0(\)  1(\)  0(^) -1(^) -2(^) -3(^)
+       T -3(^) -1(<) -1(\)  0(<)  2(\)  1(^)  0(^) -1(^)
+       T -4(^) -2(<) -2(\) -1(<)  1(\)  1(\)  0(\) -1(\)
+       A -5(^) -3(<) -3(\) -1(\)  0(<)  0(\)  0(\) -1(\)
+       C -6(^) -4(<) -2(\) -2(<) -1(<) -1(\)  1(\)  0(^)
+       A -7(^) -5(<) -3(<) -1(\) -2(^) -2(\)  0(<)  0(\)
