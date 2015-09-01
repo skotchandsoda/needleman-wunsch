@@ -23,14 +23,12 @@ usage()
     fprintf(stderr,
             "usage: needleman-wunsch [-hqt] s1 s2 m k d\n"              \
             "Align two strings with the Needleman-Wunsch algorithm\n"   \
-            "\n"                                                        \
             "arguments:\n"                                              \
             "  s1   first string to align\n"                            \
             "  s2   second string to align\n"                           \
             "   m   score for matching characters\n"                    \
             "   k   penalty for mismatched characters\n"                \
             "   d   penalty for a gap\n"                                \
-            "\n"                                                        \
             "options:\n"                                                \
             "  -h   print this message\n"                               \
             "  -q   be quiet; don't print an optimal alignment for "    \
