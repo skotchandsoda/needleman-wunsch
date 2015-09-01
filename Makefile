@@ -1,5 +1,7 @@
-# Copyright (C) 2015 Scott Cheloha.
+# Copyright (C) 2015, Scott Cheloha
 # All rights reserved.
+
+# See LICENSE for full copyright information.
 
 PROG := needleman-wunsch
 SRC := needleman-wunsch.c table.c cell.c
