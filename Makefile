@@ -12,5 +12,4 @@ debug $(PROG): $(SRC)
 	$(CC) $(OPTS) -o $(PROG) $(SRC)
 
 clean:
-	rm $(PROG)
-	rm *.o
+	rm -rf *.o *.dSYM $(PROG)
