@@ -111,7 +111,7 @@ print_row(table_t *T, int n, char *s2, int unicode)
     }
 
     if (T->cells[i][n].up == 1) {
-      printf("  %s", (unicode == 1 ? "\u2B06" : "\\"));
+      printf("  %s", (unicode == 1 ? "\u2B06" : "^"));
     } else {
       printf("   ");
     }
