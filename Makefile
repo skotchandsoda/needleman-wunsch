@@ -3,15 +3,24 @@
 
 # See LICENSE for full copyright information.
 
-PROG := needleman-wunsch
-SRC := needleman-wunsch.c table.c cell.c
-OPTS :=
+PROG = needleman-wunsch
+SRC = needleman-wunsch.c table.c cell.c
+INC = table.h cell.h
+OBJ = ${SRC:.c=.o}
+CFLAGS = -g
+
+.SUFFIXES:
+.SUFFIXES: .o .c
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
 
 all: $(PROG)
 
-debug: OPTS += -g
-debug $(PROG): $(SRC)
-	$(CC) $(OPTS) -o $(PROG) $(SRC)
+$(PROG): $(OBJ)
+	$(CC) -o $@ $(OBJ)
+
+$(OBJ): $(INC)
 
 clean:
-	rm -rf *.o *.dSYM $(PROG)
+	rm -f $(OBJ) $(PROG)
