@@ -10,11 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "cell.h"
 #include "table.h"
-
-//#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-//#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 int qflag = 0;
 int tflag = 0;
@@ -44,54 +40,43 @@ usage()
 void
 print_aligned_strings(char *s1,
                       char *s2,
-                      cell_t **table,
-                      int M,
-                      int N)
+                      table_t *T)
 {
-    char X[1024];
-    char Y[1024];
+  int max_aligned_strlen = T->M + T->N;
+    char X[max_aligned_strlen];
+    char Y[max_aligned_strlen];
 
     // Move through the table and modify the output strings as needed
-    int i = M-1;
-    int j = N-1;
+    int i = T->M-1;
+    int j = T->N-1;
     int n = 0;
     do {
       fprintf(stderr, "%d: %d,%d", n, i, j);
-      switch (table[i][j].ptr) {
-        case DIAG:
-            X[n] = s1[i-1];
-            Y[n] = s2[j-1];
-            i = i - 1;
-            j = j - 1;
-            break;
-        case LEFT:
-            X[n] = s1[i-1];
-            Y[n] = '-';
-            i = i - 1;
-            break;
-        case UP:
-            X[n] = '-';
-            Y[n] = s2[j-1];
-            j = j - 1;
-            break;
-        case NONE:
-            break;
-        default:
-            fprintf(stderr, "the impossible has happened; giving up\n");
-            exit(1);
-            break;
-        }
+      if (T->cells[i][j].diag == 1) {
+        X[n] = s1[i-1];
+        Y[n] = s2[j-1];
+        i = i - 1;
+        j = j - 1;
+      } else if (T->cells[i][j].left == 1) {
+        X[n] = s1[i-1];
+        Y[n] = '-';
+        i = i - 1;
+      } else if (T->cells[i][j].up == 1) {
+        X[n] = '-';
+        Y[n] = s2[j-1];
+        j = j - 1;
+      }
       fprintf(stderr, " %c %c\n", X[n], Y[n]);
-        n = n + 1;
-    } while (table[i][j].ptr != NONE);
+      n = n + 1;
+    } while (T->cells[i][j].diag || T->cells[i][j].left || T->cells[i][j].up);
 
     // Print the strings backwards
     for (int a = n-1; a > -1; a--) {
         printf("%c", X[a]);
     }
     printf("\n");
-    for (int b = n-1; b > -1; b--) {
-        printf("%c", Y[b]);
+    for (int a = n-1; a > -1; a--) {
+        printf("%c", Y[a]);
     }
     printf("\n");
 }
@@ -107,9 +92,7 @@ int max(int a, int b, int c)
 void
 compute_optimal_alignment(char *s1,
                           char *s2,
-                          cell_t **table,
-                          int M,
-                          int N,
+                          table_t *T,
                           int m,
                           int k,
                           int d)
@@ -117,21 +100,20 @@ compute_optimal_alignment(char *s1,
     int match = 0;
     int gap_in_x = 0;
     int gap_in_y = 0;
-    for (int i = 1; i < M; i++) {
-        for (int j = 1; j < N; j++) {
-            match = table[i-1][j-1].score + (s1[i-1] == s2[j-1] ? m : (-k));
-            gap_in_x = table[i][j-1].score - d;
-            gap_in_y = table[i-1][j].score - d;
-            table[i][j].score = max(match, gap_in_x, gap_in_y);
-            if (table[i][j].score == match) {
-                table[i][j].ptr = DIAG;
-            } else if (table[i][j].score == gap_in_x) {
-                table[i][j].ptr = UP;
-            } else if (table[i][j].score == gap_in_y) {
-                table[i][j].ptr = LEFT;
-            } else {
-                fprintf(stderr, "the impossible has happened; giving up\n");
-                exit(1);
+    for (int i = 1; i < T->M; i++) {
+        for (int j = 1; j < T->N; j++) {
+            match = T->cells[i-1][j-1].score + (s1[i-1] == s2[j-1] ? m : (-k));
+            gap_in_x = T->cells[i][j-1].score - d;
+            gap_in_y = T->cells[i-1][j].score - d;
+            T->cells[i][j].score = max(match, gap_in_x, gap_in_y);
+            if (T->cells[i][j].score == match) {
+                T->cells[i][j].diag = 1;
+            }
+            if (T->cells[i][j].score == gap_in_x) {
+                T->cells[i][j].up = 1;
+            }
+            if (T->cells[i][j].score == gap_in_y) {
+                T->cells[i][j].left = 1;
             }
         }
     }
@@ -148,24 +130,24 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int d)
     int N = strlen(s2) + 1;
 
     // Create and initialize the scores table
-    cell_t **table = alloc_table(M, N);
-    init_table(table, M, N, d);
+    table_t *T = alloc_table(M, N);
+    init_table(T, d);
 
     // Fill out table, i.e. compute the optimal score and alignment
-    compute_optimal_alignment(s1, s2, table, M, N, m, k, d);
+    compute_optimal_alignment(s1, s2, T, m, k, d);
 
     // Print table
     if (tflag == 1) {
-        print_table(table, M, N, s1, s2);
+      print_table(T, s1, s2);
     }
 
     // Print aligned strings
     if (qflag != 1) {
-        print_aligned_strings(s1, s2, table, M, N);
+        print_aligned_strings(s1, s2, T);
     }
 
     // Clean up
-    free_table(table, M);
+    free_table(T);
 }
 
 int

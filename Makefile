@@ -4,8 +4,8 @@
 # See LICENSE for full copyright information.
 
 PROG = needleman-wunsch
-SRC = needleman-wunsch.c table.c cell.c
-INC = table.h cell.h
+SRC = needleman-wunsch.c table.c
+INC = table.h
 OBJ = ${SRC:.c=.o}
 CFLAGS = -g
 
