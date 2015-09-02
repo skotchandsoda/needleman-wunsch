@@ -72,44 +72,48 @@ init_table(table_t *T, int d)
     for (int i = 1; i < T->M; i++) {
         T->cells[i][0].score = (-i) * d;
         T->cells[i][0].left = 1;
+        T->cells[i][0].up = 0;
+        T->cells[i][0].diag = 0;
     }
 
     // Rest of leftmost column has score (-j)*d and UP direction
     for (int j = 1; j < T->N; j++) {
         T->cells[0][j].score = (-j) * d;
         T->cells[0][j].up = 1;
+        T->cells[0][j].left = 0;
+        T->cells[0][j].diag = 0;
     }
 }
 
 static void
 print_top_row(table_t *T, char *s1)
 {
-  printf("* | *");
+  printf("*     *");
   for (int i = 0; i < T->M - 1; i++) {
-    printf(" | %c", s1[i]);
+    printf("     %c", s1[i]);
   }
 
   printf("\n");
 }
 
 static void
-print_row(table_t *T, int n, char *s2)
+print_row(table_t *T, int n, char *s2, int unicode)
 {
-  // Start with a '-' separator
-  printf("-");
+  // Start with a '   ' separator
+  printf(" ");
 
   // Print the row's header
   for (int i = 0; i < T->M; i++) {
-    if (T->cells[n][i].diag == 1) {
-      printf(" \\");
+    if (T->cells[i][n].diag == 1) {
+      printf("  %s", (unicode == 1 ? "\u2B09" : "\\"));
     } else {
-      printf(" +");
+      printf("   ");
     }
 
-    if (T->cells[n][i].up == 1) {
-      printf(" ^");
+    if (T->cells[i][n].up == 1) {
+      printf("  %s", (unicode == 1 ? "\u2B06" : "\\"));
     } else {
-      printf(" -");
+      printf("   ");
     }
   }
 
@@ -120,40 +124,22 @@ print_row(table_t *T, int n, char *s2)
 
   // Now the scores and left separators
   for (int i = 0; i < T->M; i++) {
-    if (T->cells[n][i].left == 1) {
-      printf(" <");
+    if (T->cells[i][n].left == 1) {
+      printf("  %s", (unicode == 1 ? "\u2B05" : "<"));
     } else {
-      printf(" |");
+      printf("   ");
     }
-    printf(" %d", T->cells[n][i].score);
+    printf("%3d", T->cells[i][n].score);
   }
 
   printf("\n");
 }
 
 void
-print_table(table_t *T, char *s1, char *s2)
+print_table(table_t *T, char *s1, char *s2, int unicode)
 {
   print_top_row(T, s1);
   for (int i = 0; i < T->N; i++) {
-    print_row(T, i, s2);
+    print_row(T, i, s2, unicode);
   }
 }
-
-/*     // Print first row of numbers preceded by '*' placeholder */
-/*     printf("\n*"); */
-/*     for (int i = 0; i < M; i++) { */
-/*         printf(" "); */
-/*         print_cell(&T->cells[i][0], 1); */
-/*     } */
-
-/*     // Print the rest of the rows, all preceded by a letter from s2 */
-/*     for (int j = 1; j < N; j++) { */
-/*         printf("\n%c", s2[j-1]); */
-/*         for (int i = 0; i < M; i++) { */
-/*             printf(" "); */
-/*             print_cell(&T->cells[i][j], 1); */
-/*         } */
-/*     } */
-/*     printf("\n"); */
-/* } */

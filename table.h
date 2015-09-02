@@ -8,6 +8,8 @@
 #ifndef TABLE_H
 #define TABLE_H
 
+
+
 // cell_t, a type describing a cell in the table
 typedef struct cell {
   int score;
@@ -33,6 +35,6 @@ void free_table(table_t *T);
 void init_table(table_t *T, int d);
 
 // Print the score table
-void print_table(table_t *T, char *s1, char *s2);
+void print_table(table_t *T, char *s1, char *s2, int unicode);
 
 #endif /* TABLE_H */

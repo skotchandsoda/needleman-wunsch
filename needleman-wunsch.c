@@ -14,6 +14,7 @@
 
 int qflag = 0;
 int tflag = 0;
+int uflag = 0;
 
 void
 usage()
@@ -33,6 +34,7 @@ usage()
             "the input strings\n"                                       \
             "  -t   print the scores table "                            \
             "(pretty-print it with awk or column)\n"                    \
+            "  -u   use unicode arrows when printing the  table\n"      \
         );
     exit(1);
 }
@@ -51,7 +53,6 @@ print_aligned_strings(char *s1,
     int j = T->N-1;
     int n = 0;
     do {
-      fprintf(stderr, "%d: %d,%d", n, i, j);
       if (T->cells[i][j].diag == 1) {
         X[n] = s1[i-1];
         Y[n] = s2[j-1];
@@ -66,7 +67,6 @@ print_aligned_strings(char *s1,
         Y[n] = s2[j-1];
         j = j - 1;
       }
-      fprintf(stderr, " %c %c\n", X[n], Y[n]);
       n = n + 1;
     } while (T->cells[i][j].diag || T->cells[i][j].left || T->cells[i][j].up);
 
@@ -138,7 +138,7 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int d)
 
     // Print table
     if (tflag == 1) {
-      print_table(T, s1, s2);
+      print_table(T, s1, s2, uflag);
     }
 
     // Print aligned strings
@@ -164,7 +164,7 @@ main(int argc, char **argv)
     extern char *optarg;
     extern int optind;
     int c;
-    while ((c = getopt(argc, argv, "hqt")) != -1) {
+    while ((c = getopt(argc, argv, "hqtu")) != -1) {
         switch (c) {
         case 'h':
             usage();
@@ -175,6 +175,9 @@ main(int argc, char **argv)
         case 't':
             tflag = 1;
             break;
+        case 'u':
+          uflag = 1;
+          break;
         case '?':
         default:
             usage();
