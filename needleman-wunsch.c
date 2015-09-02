@@ -13,8 +13,8 @@
 #include "cell.h"
 #include "table.h"
 
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+//#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+//#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 int qflag = 0;
 int tflag = 0;
@@ -42,7 +42,11 @@ usage()
 }
 
 void
-print_aligned_strings(char *s1, char *s2, cell_t **table, int M, int N)
+print_aligned_strings(char *s1,
+                      char *s2,
+                      cell_t **table,
+                      int M,
+                      int N)
 {
     char X[1024];
     char Y[1024];
@@ -52,32 +56,32 @@ print_aligned_strings(char *s1, char *s2, cell_t **table, int M, int N)
     int j = N-1;
     int n = 0;
     do {
-        switch (table[i][j].ptr) {
+      fprintf(stderr, "%d: %d,%d", n, i, j);
+      switch (table[i][j].ptr) {
         case DIAG:
             X[n] = s1[i-1];
             Y[n] = s2[j-1];
             i = i - 1;
             j = j - 1;
             break;
-        case UP:
+        case LEFT:
             X[n] = s1[i-1];
             Y[n] = '-';
             i = i - 1;
             break;
-        case LEFT:
+        case UP:
             X[n] = '-';
             Y[n] = s2[j-1];
             j = j - 1;
             break;
         case NONE:
-            i = i - 1;
-            j = j - 1;
             break;
         default:
             fprintf(stderr, "the impossible has happened; giving up\n");
             exit(1);
             break;
         }
+      fprintf(stderr, " %c %c\n", X[n], Y[n]);
         n = n + 1;
     } while (table[i][j].ptr != NONE);
 
@@ -90,6 +94,14 @@ print_aligned_strings(char *s1, char *s2, cell_t **table, int M, int N)
         printf("%c", Y[b]);
     }
     printf("\n");
+}
+
+int max(int a, int b, int c)
+{
+     int m = a;
+     (m < b) && (m = b); //these are not conditional statements.
+     (m < c) && (m = c); //these are just boolean expressions.
+     return m;
 }
 
 void
@@ -108,10 +120,9 @@ compute_optimal_alignment(char *s1,
     for (int i = 1; i < M; i++) {
         for (int j = 1; j < N; j++) {
             match = table[i-1][j-1].score + (s1[i-1] == s2[j-1] ? m : (-k));
-            gap_in_x = table[i-1][j].score - d;
-            gap_in_y = table[i][j-1].score - d;
-            table[i][j].score = MAX(MAX(match, gap_in_x),
-                                    MAX(match, gap_in_y));
+            gap_in_x = table[i][j-1].score - d;
+            gap_in_y = table[i-1][j].score - d;
+            table[i][j].score = max(match, gap_in_x, gap_in_y);
             if (table[i][j].score == match) {
                 table[i][j].ptr = DIAG;
             } else if (table[i][j].score == gap_in_x) {
