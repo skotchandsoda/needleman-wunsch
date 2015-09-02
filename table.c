@@ -105,13 +105,13 @@ print_row(table_t *T, int n, char *s2, int unicode)
   // Print the row's header
   for (int i = 0; i < T->M; i++) {
     if (T->cells[i][n].diag == 1) {
-      printf("  %s", (unicode == 1 ? "\u2B09" : "\\"));
+      printf("  %s", (unicode == 1 ? "\u2196" : "\\"));
     } else {
       printf("   ");
     }
 
     if (T->cells[i][n].up == 1) {
-      printf("  %s", (unicode == 1 ? "\u2B06" : "^"));
+      printf("  %s", (unicode == 1 ? "\u2191" : "^"));
     } else {
       printf("   ");
     }
@@ -125,7 +125,7 @@ print_row(table_t *T, int n, char *s2, int unicode)
   // Now the scores and left separators
   for (int i = 0; i < T->M; i++) {
     if (T->cells[i][n].left == 1) {
-      printf("  %s", (unicode == 1 ? "\u2B05" : "<"));
+      printf("  %s", (unicode == 1 ? "\u2190" : "<"));
     } else {
       printf("   ");
     }
