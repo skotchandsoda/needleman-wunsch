@@ -63,83 +63,97 @@ free_table(table_t *T)
 void
 init_table(table_t *T, int d)
 {
-    // Initialize the table
-    // 0,0 is 0 and has no direction
-    T->cells[0][0].score = 0;
+        // Initialize the table
+        // 0,0 is 0 and has no direction
+        T->cells[0][0].score = 0;
 
 
-    // Rest of top row has score (-i)*d and LEFT direction
-    for (int i = 1; i < T->M; i++) {
-        T->cells[i][0].score = (-i) * d;
-        T->cells[i][0].left = 1;
-        T->cells[i][0].up = 0;
-        T->cells[i][0].diag = 0;
-    }
+        // Rest of top row has score (-i)*d and LEFT direction
+        for (int i = 1; i < T->M; i++) {
+                T->cells[i][0].score = (-i) * d;
+                T->cells[i][0].left = 1;
+                T->cells[i][0].up = 0;
+                T->cells[i][0].diag = 0;
+        }
 
-    // Rest of leftmost column has score (-j)*d and UP direction
-    for (int j = 1; j < T->N; j++) {
-        T->cells[0][j].score = (-j) * d;
-        T->cells[0][j].up = 1;
-        T->cells[0][j].left = 0;
-        T->cells[0][j].diag = 0;
-    }
+        // Rest of leftmost column has score (-j)*d and UP direction
+        for (int j = 1; j < T->N; j++) {
+                T->cells[0][j].score = (-j) * d;
+                T->cells[0][j].up = 1;
+                T->cells[0][j].left = 0;
+                T->cells[0][j].diag = 0;
+        }
 }
 
 static void
-print_top_row(table_t *T, char *s1)
+print_top_row(table_t *T, char *s1, int score_col_width)
 {
-  printf("*     *");
-  for (int i = 0; i < T->M - 1; i++) {
-    printf("     %c", s1[i]);
-  }
+        printf("*    %*s", score_col_width, "*");
+        for (int i = 0; i < T->M - 1; i++) {
+                printf("    %*s%c", score_col_width-1, "", s1[i]);
+        }
 
-  printf("\n");
+        printf("\n");
 }
 
 static void
-print_row(table_t *T, int n, char *s2, int unicode)
+print_row(table_t *T, int n, char *s2, int score_col_width, int unicode)
 {
-  // Start with a '   ' separator
-  printf(" ");
+        // Start with a '   ' separator
+        printf(" ");
 
-  // Print the row's header
-  for (int i = 0; i < T->M; i++) {
-    if (T->cells[i][n].diag == 1) {
-      printf("  %s", (unicode == 1 ? "\u2196" : "\\"));
-    } else {
-      printf("   ");
-    }
+        // Print the row's header
+        for (int i = 0; i < T->M; i++) {
+                if (T->cells[i][n].diag == 1) {
+                        printf("  %s ", (unicode == 1 ? "\u2196" : "\\"));
+                } else {
+                        printf("    ");
+                }
 
-    if (T->cells[i][n].up == 1) {
-      printf("  %s", (unicode == 1 ? "\u2191" : "^"));
-    } else {
-      printf("   ");
-    }
-  }
+                if (T->cells[i][n].up == 1) {
+                        printf("%*s",
+                               (unicode == 1 ? score_col_width + 2: score_col_width),
+                               (unicode == 1 ? "\u2191" : "^"));
+                } else {
+                        printf("%*s", score_col_width, "");
+                }
+        }
 
-  // Next, the row itself.  Start with either a '*' separator (if this
-  // is the first row of numbers, i.e. n == 0) or a letter from the side
-  // string (s2)
-  printf("\n%c", (n == 0 ? '*' : s2[n-1]));
+        // Next, the row itself.  Start with either a '*' separator (if this
+        // is the first row of numbers, i.e. n == 0) or a letter from the side
+        // string (s2)
+        printf("\n%c", (n == 0 ? '*' : s2[n-1]));
 
-  // Now the scores and left separators
-  for (int i = 0; i < T->M; i++) {
-    if (T->cells[i][n].left == 1) {
-      printf("  %s", (unicode == 1 ? "\u2190" : "<"));
-    } else {
-      printf("   ");
-    }
-    printf("%3d", T->cells[i][n].score);
-  }
+        // Now the scores and left separators
+        for (int i = 0; i < T->M; i++) {
+                if (T->cells[i][n].left == 1) {
+                        printf("  %s ", (unicode == 1 ? "\u2190" : "<"));
+                } else {
+                        printf("    ");
+                }
+                printf("%*d", score_col_width, T->cells[i][n].score);
+        }
 
-  printf("\n");
+        printf("\n");
+}
+
+static int
+width_needed_to_print(int x)
+{
+        int w = 0;
+        do {
+                x /= 10;
+                w = w + 1;
+        } while (x != 0);
+        return w + 1; // add 1 to make room for a negative sign
 }
 
 void
 print_table(table_t *T, char *s1, char *s2, int unicode)
 {
-  print_top_row(T, s1);
-  for (int i = 0; i < T->N; i++) {
-    print_row(T, i, s2, unicode);
-  }
+        int score_col_width = width_needed_to_print(T->greatest_abs_val);
+        print_top_row(T, s1, score_col_width);
+        for (int i = 0; i < T->N; i++) {
+                print_row(T, i, s2, score_col_width, unicode);
+        }
 }

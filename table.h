@@ -12,17 +12,18 @@
 
 // cell_t, a type describing a cell in the table
 typedef struct cell {
-  int score;
-  int diag;
-  int left;
-  int up;
+        int score;
+        int diag;
+        int left;
+        int up;
 } cell_t;
 
 // table_t, a type describing an MxN table of cells (cell_t)
 typedef struct table {
-  int M;
-  int N;
-  cell_t **cells;
+        int M;
+        int N;
+        cell_t **cells;
+        int greatest_abs_val;
 } table_t;
 
 // Allocate a MxN table of cells

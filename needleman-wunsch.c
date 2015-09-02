@@ -5,6 +5,7 @@
 
 // needleman-wunsch -- align two strings with the Needleman-Wunsch algorithm
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -144,6 +145,7 @@ compute_optimal_alignment(char *s1,
         int diag_val = 0;
         int gap_in_x = 0;
         int gap_in_y = 0;
+        T->greatest_abs_val = 0;
         for (int i = 1; i < T->M; i++) {
                 for (int j = 1; j < T->N; j++) {
                         diag_val = (s1[i-1] == s2[j-1] ? m : (-k));
@@ -151,6 +153,9 @@ compute_optimal_alignment(char *s1,
                         gap_in_x = T->cells[i][j-1].score - d;
                         gap_in_y = T->cells[i-1][j].score - d;
                         T->cells[i][j].score = max(match, gap_in_x, gap_in_y);
+                        if (abs(T->cells[i][j].score) > T->greatest_abs_val) {
+                                T->greatest_abs_val = abs(T->cells[i][j].score);
+                        }
                         if (T->cells[i][j].score == match) {
                                 T->cells[i][j].diag = 1;
                         }
