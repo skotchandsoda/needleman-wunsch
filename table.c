@@ -129,9 +129,15 @@ print_row(table_t *T, int n, char *s1, char *s2, int score_col_width, int unicod
                 if (T->cells[i][n].up == 1) {
                         // The unicode arrows are two bytes, so we add
                         // to the spacing offset when printing them
+                    if (T->cells[i][n].in_optimal_path == 1) {
+                        set_fmt(gap_fmt);
+                    }
                         printf("%*s",
                                (unicode == 1 ? score_col_width + 2: score_col_width),
                                (unicode == 1 ? "\u2191" : "^"));
+                        if (T->cells[i][n].in_optimal_path == 1) {
+                            reset_fmt();
+                        }
                 } else {
                         printf("%*s", score_col_width, "");
                 }
@@ -145,11 +151,23 @@ print_row(table_t *T, int n, char *s1, char *s2, int score_col_width, int unicod
         // Now print the scores and left arrows
         for (int i = 0; i < T->M; i++) {
                 if (T->cells[i][n].left == 1) {
+                    if (T->cells[i][n].in_optimal_path == 1) {
+                        set_fmt(gap_fmt);
+                    }
                         printf("  %s ", (unicode == 1 ? "\u2190" : "<"));
+                        if (T->cells[i][n].in_optimal_path == 1) {
+                            reset_fmt();
+                        }
                 } else {
                         printf("    ");
                 }
+                if (T->cells[i][n].in_optimal_path == 1) {
+                    set_fmt(bold_fmt);
+                }
                 printf("%+*d", score_col_width, T->cells[i][n].score);
+                if (T->cells[i][n].in_optimal_path == 1) {
+                    reset_fmt();
+                }
         }
 
         printf("\n");
