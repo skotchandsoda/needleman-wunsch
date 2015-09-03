@@ -8,14 +8,13 @@
 #ifndef TABLE_H
 #define TABLE_H
 
-
-
 // cell_t, a type describing a cell in the table
 typedef struct cell {
         int score;
         int diag;
         int left;
         int up;
+        int in_optimal_path;
 } cell_t;
 
 // table_t, a type describing an MxN table of cells (cell_t)
