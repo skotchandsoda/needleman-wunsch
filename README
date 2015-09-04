@@ -4,24 +4,48 @@ NAME
 
 SYNOPSIS
 
-  needleman-wunsch [-hqt] s1 s2 m k d
+  needleman-wunsch [-chiqstu] s1 s2 m k d
 
 DESCRIPTION
 
-  needleman-wunsch is a utility for aligning two strings with the
-  Needleman-Wunsch algorithm.  By default, it computes the alignment for
-  the input strings (s1 and s2) and prints the resulting alignment.
-  This default printing can be suppressed with the '-q' option.  With
-  the '-t' option, needleman-wunsch will print the score table filled
-  during the algorithm's run.  If you want to make the table look nice,
-  pipe the output into a tool like awk, column, or perl.
+  needleman-wunsch is a utility for computing the optimal alignments of
+  two strings with the Needleman-Wunsch algorithm
+  (see http://en.wikipedia.org/Needleman-Wunsch_algorithm).
+
+  By default, it computes the alignment for the input strings (s1 and
+  s2) and prints all optimal alignment pairs, given inputs m, k, and
+  d, to the standard output.  You can print matching/mismatching/gap
+  character counts for each alignment pair with the '-i' flag.  You can
+  also print a summary of the output with the '-s' flag.
+
+  The default behavior (printing all optimal alignment pairs) can be
+  suppressed with the '-q' flag.
+
+  With the '-t' option, needleman-wunsch will print the score table
+  filled during the algorithm's run.  By default, needleman-wunsch will
+  use ASCII characters '<', '^', and '\' to represent left, up, and
+  diagonal direction arrows, respectively.  Portable though this may be,
+  it is somewhat ugly.  For a prettier table printout, use the '-u'
+  flag.  needleman-wunsch will then use Unicode characters (U+2190),
+  (U+), and (U+) instead.
+
+  Note that the table printout will only be legible and useful if your
+  input is relatively small.
+
+  To make the table easier to read, you can enable colored output with
+  the '-c' flag.  This turns on ANSI escape-sequence formatting, which
+  will bolden and color the optimal path within the table.  Obviously,
+  if you are piping the program output to another program you shouldn't
+  have this enabled.
+
+  The '-c' flag also colors mismatched characters in the aligned string
+  printouts.
 
 BUILDING
 
-  needleman-wunsch is all C99 and has no external dependencies.  Its makefile
-  uses no extensions to the POSIX syntax.
+  To build needleman-wunsch on a POSIX platform:
 
-  Just run `make'.
+    $ make
 
 EXAMPLE
 
