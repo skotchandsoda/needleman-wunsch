@@ -20,17 +20,17 @@
 /* #define ANSI_FG_CYAN    "36" */
 /* #define ANSI_FMT_RESET  "0" */
 
-#define BOLD_FMT "\x1b[1m"
+#define SCORE_FMT ""
 #define MATCH_FMT "\x1b[34;1m"
 #define MISMATCH_FMT "\x1b[31;1m"
-#define GAP_FMT "\x1b[33;1m"
+#define GAP_FMT "\x1b[30;1m"
 #define RESET_FMT "\x1b[0m"
 
 // Flag for colorful output.  Externed in main file.
 int cflag;
 
 // Type describing the various formatting options we support
-typedef enum {bold_fmt, match_fmt, mismatch_fmt, gap_fmt} fmt_t;
+typedef enum {score_fmt, match_fmt, mismatch_fmt, gap_fmt} fmt_t;
 
 // Set the output formatting to any of the formats in fmt_t the enum
 void set_fmt(fmt_t f);

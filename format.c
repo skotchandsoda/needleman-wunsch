@@ -16,8 +16,8 @@ set_fmt(fmt_t f)
 {
         if (cflag == 1) {
                 switch (f) {
-                case bold_fmt:
-                        printf(BOLD_FMT);
+                case score_fmt:
+                        printf(SCORE_FMT);
                         break;
                 case match_fmt:
                         printf(MATCH_FMT);

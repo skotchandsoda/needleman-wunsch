@@ -186,7 +186,7 @@ print_score_row(table_t *T, int row, char *s1, char *s2, int score_width, int un
 
                 // Print the cell's score
                 if (T->cells[col][row].in_optimal_path == 1) {
-                        set_fmt(bold_fmt);
+                        set_fmt(score_fmt);
                 }
                 printf("%+*d", score_width, T->cells[col][row].score);
                 if (T->cells[col][row].in_optimal_path == 1) {
