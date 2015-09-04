@@ -1,9 +1,9 @@
-// Copyright (c) 2015 Scott Cheloha.
+// Copyright (c) 2015, Scott Cheloha
 // All rights reserved.
 
 // See LICENSE for full copyright information.
 
-// table.h -- prototypes for table.c
+// table.h - prototypes for table.c
 
 #ifndef TABLE_H
 #define TABLE_H

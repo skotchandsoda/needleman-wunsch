@@ -1,10 +1,10 @@
-// Copyright (c) 2015 Scott Cheloha.
+// Copyright (c) 2015, Scott Cheloha
 // All rights reserved.
 
 // See LICENSE for full copyright information.
 
-// table.c -- routines for allocating, initializing, and printing
-//            the scoring table in the Needleman Wunsch algorithm
+// table.c - routines for allocating, initializing, and printing
+//           the scoring table in the Needleman Wunsch algorithm
 
 #include <errno.h>
 #include <stdio.h>
