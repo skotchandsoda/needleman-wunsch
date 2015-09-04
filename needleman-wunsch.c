@@ -79,8 +79,8 @@ print_aligned_strings_and_counts(char *X, char *Y, int n, int print_counts)
 
         // Print the strings backwards
         for (int i = n; i > -1; i--) {
-                print_char_from_aligned_string(X, Y, i);
-                if (prnt_counts == 1) {
+                print_aligned_string_char(X, Y, i);
+                if (print_counts == 1) {
                         if (X[i] == Y[i]) {
                                 match_count = match_count + 1;
                         } else if (X[i] == GAP_CHAR || Y[i] == GAP_CHAR) {
