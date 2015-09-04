@@ -16,8 +16,14 @@ set_fmt(fmt_t f)
 {
         if (cflag == 1) {
                 switch (f) {
-                case score_fmt:
-                        printf(SCORE_FMT);
+                case top_string_fmt:
+                        printf(TOP_STRING_FMT);
+                        break;
+                case side_string_fmt:
+                        printf(SIDE_STRING_FMT);
+                        break;
+                case opt_path_fmt:
+                        printf(OPT_PATH_FMT);
                         break;
                 case match_fmt:
                         printf(MATCH_FMT);
