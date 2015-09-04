@@ -56,16 +56,16 @@ alloc_table(int M, int N)
 void
 free_table(table_t *T)
 {
-    // Free each subarray of cells
-    for (int i = 0; i < T->M; i++) {
-        free(T->cells[i]);
-    }
+        // Free each subarray of cells
+        for (int i = 0; i < T->M; i++) {
+                free(T->cells[i]);
+        }
 
-    // Free the top-level array of cell pointers
-    free(T->cells);
+        // Free the top-level array of cell pointers
+        free(T->cells);
 
-    // Free the table_t itself
-    free(T);
+        // Free the table_t itself
+        free(T);
 }
 
 void
@@ -80,97 +80,127 @@ init_table(table_t *T, int d)
         for (int i = 1; i < T->M; i++) {
                 T->cells[i][0].score = (-i) * d;
                 T->cells[i][0].left = 1;
-                /* T->cells[i][0].up = 0; */
-                /* T->cells[i][0].diag = 0; */
         }
 
         // Rest of leftmost column has score (-j)*d and UP direction
         for (int j = 1; j < T->N; j++) {
                 T->cells[0][j].score = (-j) * d;
                 T->cells[0][j].up = 1;
-                /* T->cells[0][j].left = 0; */
-                /* T->cells[0][j].diag = 0; */
         }
 }
 
 static void
-print_top_row(table_t *T, char *s1, int score_col_width)
+print_table_top_row(table_t *T, char *s1, int score_width)
 {
-        printf("*    %*s", score_col_width, "*");
+        printf("*    %*s", score_width, "*");
         for (int i = 0; i < T->M - 1; i++) {
-                printf("    %*s%c", score_col_width-1, "", s1[i]);
+                printf("    %*s%c", score_width-1, "", s1[i]);
         }
 
         printf("\n");
 }
 
+typedef enum {left, up, diag} arrow_t;
+
 static void
-print_row(table_t *T, int n, char *s1, char *s2, int score_col_width, int unicode)
+print_arrow(arrow_t a, int optimal_path, int score_width, int col, int row, char *s1, char *s2, int unicode)
+{
+    switch (a) {
+    case left:
+            if (optimal_path) {
+                    set_fmt(gap_fmt);
+            }
+            printf("  %s ", (unicode == 1 ? "\u2190" : "<"));
+            break;
+    case up:
+            if (optimal_path == 1) {
+                    set_fmt(gap_fmt);
+            }
+            printf("%*s",
+                   (unicode == 1 ? score_width + 2: score_width),
+                   (unicode == 1 ? "\u2191" : "^"));
+            break;
+    case diag:
+            if (optimal_path == 1) {
+                    if (s1[col] == s2[row]) {
+                            set_fmt(match_fmt);
+                    } else {
+                            set_fmt(mismatch_fmt);
+                    }
+            }
+            printf("  %s ", (unicode == 1 ? "\u2196" : "\\"));
+            break;
+    default:
+            fprintf(stderr, "the impossible has happened; giving up\n");
+            exit(1);
+            break;
+    }
+    reset_fmt();
+}
+
+static void
+print_directional_row(table_t *T, int row, char *s1, char *s2, int score_width, int unicode)
 {
         // Start with a space as a character placeholder
         printf(" ");
 
-        // Print the row's header
-        for (int i = 0; i < T->M; i++) {
-                if (T->cells[i][n].diag == 1) {
-                        if (T->cells[i][n].in_optimal_path == 1) {
-                                if (s1[i] == s2[n]) {
-                                        set_fmt(match_fmt);
-                                } else {
-                                        set_fmt(mismatch_fmt);
-                                }
-                        }
-                        printf("  %s ", (unicode == 1 ? "\u2196" : "\\"));
-                        reset_fmt();
+        // Print the row's directional arrows
+        for (int col = 0; col < T->M; col++) {
+                int optimal_path = T->cells[col][row].in_optimal_path;
+
+                // Print diagonal arrow if applicable
+                if (T->cells[col][row].diag == 1) {
+                        print_arrow(diag, optimal_path, score_width, col, row, s1, s2, unicode);
                 } else {
                         printf("    ");
                 }
 
-                if (T->cells[i][n].up == 1) {
-                        // The unicode arrows are two bytes, so we add
-                        // to the spacing offset when printing them
-                    if (T->cells[i][n].in_optimal_path == 1) {
-                        set_fmt(gap_fmt);
-                    }
-                        printf("%*s",
-                               (unicode == 1 ? score_col_width + 2: score_col_width),
-                               (unicode == 1 ? "\u2191" : "^"));
-                        if (T->cells[i][n].in_optimal_path == 1) {
-                            reset_fmt();
-                        }
+                // Print up arrow if applicable
+                if (T->cells[col][row].up == 1) {
+                        print_arrow(up, optimal_path, score_width, col, row, s1, s2, unicode);
                 } else {
-                        printf("%*s", score_col_width, "");
+                        printf("%*s", score_width, "");
                 }
         }
+        printf("\n");
+}
 
-        // Next, the row itself.  Start with either a '*' separator (if this
+static void
+print_score_row(table_t *T, int row, char *s1, char *s2, int score_width, int unicode)
+{
+        // Start with either a '*' separator (if this
         // is the first row of numbers, i.e. n == 0) or a letter from the side
         // string (s2)
-        printf("\n%c", (n == 0 ? '*' : s2[n-1]));
+        printf("%c", (row == 0 ? '*' : s2[row-1]));
 
         // Now print the scores and left arrows
-        for (int i = 0; i < T->M; i++) {
-                if (T->cells[i][n].left == 1) {
-                    if (T->cells[i][n].in_optimal_path == 1) {
-                        set_fmt(gap_fmt);
-                    }
-                        printf("  %s ", (unicode == 1 ? "\u2190" : "<"));
-                        if (T->cells[i][n].in_optimal_path == 1) {
-                            reset_fmt();
-                        }
+        for (int col = 0; col < T->M; col++) {
+                int optimal_path = T->cells[col][row].in_optimal_path;
+
+                // Print left arrow if applicable
+                if (T->cells[col][row].left == 1) {
+                        print_arrow(left, optimal_path, score_width, col, row, s1, s2, unicode);
                 } else {
                         printf("    ");
                 }
-                if (T->cells[i][n].in_optimal_path == 1) {
-                    set_fmt(bold_fmt);
+
+                // Print the cell's score
+                if (T->cells[col][row].in_optimal_path == 1) {
+                        set_fmt(bold_fmt);
                 }
-                printf("%+*d", score_col_width, T->cells[i][n].score);
-                if (T->cells[i][n].in_optimal_path == 1) {
-                    reset_fmt();
+                printf("%+*d", score_width, T->cells[col][row].score);
+                if (T->cells[col][row].in_optimal_path == 1) {
+                        reset_fmt();
                 }
         }
-
         printf("\n");
+}
+
+static void
+print_table_row(table_t *T, int row, char *s1, char *s2, int score_width, int unicode)
+{
+        print_directional_row(T, row, s1, s2, score_width, unicode);
+        print_score_row(T, row, s1, s2, score_width, unicode);
 }
 
 static int
@@ -181,15 +211,19 @@ width_needed_to_print(int x)
                 x /= 10;
                 w = w + 1;
         } while (x != 0);
-        return w + 1; // add 1 to make room for a negative sign
+        return w + 1; // add 1 to make room for a positive/negative sign
 }
 
 void
 print_table(table_t *T, char *s1, char *s2, int unicode)
 {
-        int score_col_width = width_needed_to_print(T->greatest_abs_val);
-        print_top_row(T, s1, score_col_width);
+        int score_width = width_needed_to_print(T->greatest_abs_val);
+
+        // Print the "top string"
+        print_table_top_row(T, s1, score_width);
+
+        // Print the rest of the rows, bordered on the left by the "side string"
         for (int i = 0; i < T->N; i++) {
-                print_row(T, i, s1, s2, score_col_width, unicode);
+                print_table_row(T, i, s1, s2, score_width, unicode);
         }
 }
