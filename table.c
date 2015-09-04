@@ -89,25 +89,14 @@ init_table(table_t *T, int d)
         }
 }
 
-static void
-print_table_top_row(table_t *T, char *s1, int score_width)
-{
-        printf("*    %*s", score_width, "*");
-        for (int i = 0; i < T->M - 1; i++) {
-                printf("    %*s%c", score_width-1, "", s1[i]);
-        }
-
-        printf("\n");
-}
-
 typedef enum {left, up, diag} arrow_t;
 
 static void
-print_arrow(arrow_t a, int optimal_path, int score_width, int col, int row, char *s1, char *s2, int unicode)
+print_arrow(arrow_t a, int optimal_path, int col_width, int col, int row, char *s1, char *s2, int unicode)
 {
     switch (a) {
     case left:
-            if (optimal_path) {
+            if (optimal_path == 1) {
                     set_fmt(gap_fmt);
             }
             printf("  %s ", (unicode == 1 ? "\u2190" : "<"));
@@ -117,16 +106,12 @@ print_arrow(arrow_t a, int optimal_path, int score_width, int col, int row, char
                     set_fmt(gap_fmt);
             }
             printf("%*s",
-                   (unicode == 1 ? score_width + 2: score_width),
+                   (unicode == 1 ? col_width + 2: col_width),
                    (unicode == 1 ? "\u2191" : "^"));
             break;
     case diag:
             if (optimal_path == 1) {
-                    if (s1[col] == s2[row]) {
-                            set_fmt(match_fmt);
-                    } else {
-                            set_fmt(mismatch_fmt);
-                    }
+                    set_fmt((s1[col] == s2[row] ? match_fmt : mismatch_fmt));
             }
             printf("  %s ", (unicode == 1 ? "\u2196" : "\\"));
             break;
@@ -135,11 +120,14 @@ print_arrow(arrow_t a, int optimal_path, int score_width, int col, int row, char
             exit(1);
             break;
     }
-    reset_fmt();
+
+    if (optimal_path == 1) {
+            reset_fmt();
+    }
 }
 
 static void
-print_directional_row(table_t *T, int row, char *s1, char *s2, int score_width, int unicode)
+print_directional_row(table_t *T, int row, char *s1, char *s2, int col_width, int unicode)
 {
         // Start with a space as a character placeholder
         printf(" ");
@@ -150,28 +138,30 @@ print_directional_row(table_t *T, int row, char *s1, char *s2, int score_width, 
 
                 // Print diagonal arrow if applicable
                 if (T->cells[col][row].diag == 1) {
-                        print_arrow(diag, optimal_path, score_width, col, row, s1, s2, unicode);
+                        print_arrow(diag, optimal_path, col_width, col, row, s1, s2, unicode);
                 } else {
                         printf("    ");
                 }
 
                 // Print up arrow if applicable
                 if (T->cells[col][row].up == 1) {
-                        print_arrow(up, optimal_path, score_width, col, row, s1, s2, unicode);
+                        print_arrow(up, optimal_path, col_width, col, row, s1, s2, unicode);
                 } else {
-                        printf("%*s", score_width, "");
+                        printf("%*s", col_width, "");
                 }
         }
         printf("\n");
 }
 
 static void
-print_score_row(table_t *T, int row, char *s1, char *s2, int score_width, int unicode)
+print_score_row(table_t *T, int row, char *s1, char *s2, int col_width, int unicode)
 {
         // Start with either a '*' separator (if this
         // is the first row of numbers, i.e. n == 0) or a letter from the side
         // string (s2)
+        set_fmt(side_string_fmt);
         printf("%c", (row == 0 ? '*' : s2[row-1]));
+        reset_fmt();
 
         // Now print the scores and left arrows
         for (int col = 0; col < T->M; col++) {
@@ -179,17 +169,17 @@ print_score_row(table_t *T, int row, char *s1, char *s2, int score_width, int un
 
                 // Print left arrow if applicable
                 if (T->cells[col][row].left == 1) {
-                        print_arrow(left, optimal_path, score_width, col, row, s1, s2, unicode);
+                        print_arrow(left, optimal_path, col_width, col, row, s1, s2, unicode);
                 } else {
                         printf("    ");
                 }
 
                 // Print the cell's score
-                if (T->cells[col][row].in_optimal_path == 1) {
-                        set_fmt(score_fmt);
+                if (optimal_path == 1) {
+                        set_fmt(opt_path_fmt);
                 }
-                printf("%+*d", score_width, T->cells[col][row].score);
-                if (T->cells[col][row].in_optimal_path == 1) {
+                printf("%+*d", col_width, T->cells[col][row].score);
+                if (optimal_path == 1) {
                         reset_fmt();
                 }
         }
@@ -197,14 +187,26 @@ print_score_row(table_t *T, int row, char *s1, char *s2, int score_width, int un
 }
 
 static void
-print_table_row(table_t *T, int row, char *s1, char *s2, int score_width, int unicode)
+print_table_row(table_t *T, int row, char *s1, char *s2, int col_width, int unicode)
 {
-        print_directional_row(T, row, s1, s2, score_width, unicode);
-        print_score_row(T, row, s1, s2, score_width, unicode);
+        print_directional_row(T, row, s1, s2, col_width, unicode);
+        print_score_row(T, row, s1, s2, col_width, unicode);
+}
+
+static void
+print_top_string(table_t *T, char *s1, int col_width)
+{
+        set_fmt(top_string_fmt);
+        printf("*    %*s", col_width, "*");
+        for (int i = 0; i < T->M - 1; i++) {
+                printf("    %*s%c", col_width-1, "", s1[i]);
+        }
+
+        printf("\n");
 }
 
 static int
-width_needed_to_print(int x)
+width_needed_to_print_integer(int x)
 {
         int w = 0;
         do {
@@ -217,13 +219,13 @@ width_needed_to_print(int x)
 void
 print_table(table_t *T, char *s1, char *s2, int unicode)
 {
-        int score_width = width_needed_to_print(T->greatest_abs_val);
+        int col_width = width_needed_to_print_integer(T->greatest_abs_val);
 
         // Print the "top string"
-        print_table_top_row(T, s1, score_width);
+        print_top_string(T, s1, col_width);
 
         // Print the rest of the rows, bordered on the left by the "side string"
         for (int i = 0; i < T->N; i++) {
-                print_table_row(T, i, s1, s2, score_width, unicode);
+                print_table_row(T, i, s1, s2, col_width, unicode);
         }
 }
