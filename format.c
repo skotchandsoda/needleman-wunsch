@@ -25,14 +25,23 @@ set_fmt(fmt_t f)
                 case opt_path_fmt:
                         printf(OPT_PATH_FMT);
                         break;
-                case match_fmt:
-                        printf(MATCH_FMT);
+                case match_arrow_fmt:
+                        printf(MATCH_ARROW_FMT);
                         break;
-                case mismatch_fmt:
-                        printf(MISMATCH_FMT);
+                case mismatch_arrow_fmt:
+                        printf(MISMATCH_ARROW_FMT);
                         break;
-                case gap_fmt:
-                        printf(GAP_FMT);
+                case gap_arrow_fmt:
+                        printf(GAP_ARROW_FMT);
+                        break;
+                case match_char_fmt:
+                        printf(MATCH_CHAR_FMT);
+                        break;
+                case mismatch_char_fmt:
+                        printf(MISMATCH_CHAR_FMT);
+                        break;
+                case gap_char_fmt:
+                        printf(GAP_CHAR_FMT);
                         break;
                 default:
                         fprintf(stderr, "the impossible has happened; giving up\n");

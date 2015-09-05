@@ -101,13 +101,13 @@ print_arrow(arrow_t a, int optimal_path, int col_width, int col, int row, char *
     switch (a) {
     case left:
             if (optimal_path == 1) {
-                    set_fmt(gap_fmt);
+                    set_fmt(gap_arrow_fmt);
             }
             printf("  %s ", (unicode == 1 ? UNICODE_LEFTWARDS_ARROW : "<"));
             break;
     case up:
             if (optimal_path == 1) {
-                    set_fmt(gap_fmt);
+                    set_fmt(gap_arrow_fmt);
             }
             printf("%*s",
                    (unicode == 1 ? col_width + 2: col_width),
@@ -115,7 +115,11 @@ print_arrow(arrow_t a, int optimal_path, int col_width, int col, int row, char *
             break;
     case diag:
             if (optimal_path == 1) {
-                    set_fmt((s1[col] == s2[row] ? match_fmt : mismatch_fmt));
+                    // If the characters match, use the matching arrow
+                    // format.  If the characters do not match, use the
+                    // mismatching arrow format.
+                    fmt_t f = s1[col-1] == s2[row-1] ? match_arrow_fmt : mismatch_arrow_fmt;
+                    set_fmt(f);
             }
             printf("  %s ", (unicode == 1 ? UNICODE_NORTH_WEST_ARROW : "\\"));
             break;

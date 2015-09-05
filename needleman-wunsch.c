@@ -58,10 +58,16 @@ usage()
 void
 print_aligned_string_char(char *s1, char *s2, int n)
 {
-        // If the characters mismatch and they aren't gap characters,
-        // mark the output if ANSI formatting is set (cflag == 1)
-        if (s1[n] != s2[n] && s1[n] != GAP_CHAR && s2[n] != GAP_CHAR) {
-                set_fmt(mismatch_fmt);
+        // Format the output character as defined in format.h
+        if (s1[n] == s2[n]) {
+                set_fmt(match_char_fmt);
+        } else if (s1[n] == GAP_CHAR || s2[n] == GAP_CHAR) {
+                set_fmt(gap_char_fmt);
+        } else if (s1[n] != s2[n]) {
+                set_fmt(mismatch_char_fmt);
+        } else {
+                fprintf(stderr, "the impossible has happened; giving up\n");
+                exit(1);
         }
 
         // Print the character

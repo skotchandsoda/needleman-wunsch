@@ -33,20 +33,26 @@
         ANSI_FG_GREEN ";" ANSI_BOLD             \
         ANSI_SGI_CLOSE
 
-#define MATCH_FMT                  \
-        ANSI_CSI_OPEN              \
-        ANSI_FG_CYAN ";" ANSI_BOLD \
+#define MATCH_ARROW_FMT                         \
+        ANSI_CSI_OPEN                           \
+        ANSI_FG_CYAN ";" ANSI_BOLD              \
         ANSI_SGI_CLOSE
 
-#define MISMATCH_FMT                   \
-        ANSI_CSI_OPEN                  \
-        ANSI_FG_RED ";" ANSI_BOLD      \
+#define MISMATCH_ARROW_FMT                      \
+        ANSI_CSI_OPEN                           \
+        ANSI_FG_RED ";" ANSI_BOLD               \
         ANSI_SGI_CLOSE
 
-#define GAP_FMT                      \
-        ANSI_CSI_OPEN                \
-        ANSI_FG_YELLOW ";" ANSI_BOLD \
+#define GAP_ARROW_FMT                           \
+        ANSI_CSI_OPEN                           \
+        ANSI_FG_YELLOW ";" ANSI_BOLD            \
         ANSI_SGI_CLOSE
+
+#define MATCH_CHAR_FMT ""
+
+#define MISMATCH_CHAR_FMT MISMATCH_ARROW_FMT
+
+#define GAP_CHAR_FMT ""
 
 #define RESET_FMT                               \
         ANSI_CSI_OPEN                           \
@@ -62,9 +68,12 @@ typedef enum {
         top_string_fmt,
         side_string_fmt,
         opt_path_fmt,
-        match_fmt,
-        mismatch_fmt,
-        gap_fmt
+        match_arrow_fmt,
+        mismatch_arrow_fmt,
+        gap_arrow_fmt,
+        match_char_fmt,
+        mismatch_char_fmt,
+        gap_char_fmt
 } fmt_t;
 
 // Set the output formatting to any of the formats described in the
