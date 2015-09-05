@@ -12,6 +12,7 @@
 #define ANSI_CSI_OPEN   "\x1b[" // ASCII 27 is the ESC to start CSI formatting
 #define ANSI_SGI_CLOSE  "m"     // 'm' ends SGI formatting
 #define ANSI_BOLD       "1"
+#define ANSI_UNDERLINE  "4"
 #define ANSI_FG_RED     "31"
 #define ANSI_FG_GREEN   "32"
 #define ANSI_FG_YELLOW  "33"
@@ -52,7 +53,7 @@
 
 #define GAP_ARROW_FMT                           \
         ANSI_CSI_OPEN                           \
-        ANSI_FG_YELLOW ";" ANSI_BOLD            \
+        ANSI_FG_YELLOW ";" ANSI_BOLD           \
         ANSI_SGI_CLOSE
 
 #define MATCH_CHAR_FMT ""
