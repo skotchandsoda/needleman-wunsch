@@ -204,6 +204,11 @@ mark_optimal_path_in_table(char *s1, char *s2, table_t *T)
         // optimal solutions (alignments)
         int soln_count = walk_table_recursively(s1, s2, T, X, Y, i, j, n, 0);
 
+        // Clean up buffers if we allocated for them
+        if (qflag != 1) {
+            free(X);
+            free(Y);
+        }
         // Print details about the algorithm's run, i.e. number of
         // optimal alignments and maximum possible score
         if (sflag == 1) {
