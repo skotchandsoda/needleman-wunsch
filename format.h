@@ -20,6 +20,13 @@
 #define ANSI_FG_CYAN    "36"
 #define ANSI_FMT_RESET  "0"
 
+#define AIX_FG_RED      "91"
+#define AIX_FG_GREEN    "92"
+#define AIX_FG_YELLOW   "93"
+#define AIX_FG_BLUE     "34"
+#define AIX_FG_MAGENTA  "95"
+#define AIX_FG_CYAN     "96"
+
 // ANSI formatting we use when printing the table and aligned strings
 #define TOP_STRING_FMT                          \
         ANSI_CSI_OPEN                           \
