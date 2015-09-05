@@ -231,13 +231,59 @@ max3(int a, int b, int c)
 }
 
 void
+process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int d)
+{
+        // Cell we want to compute the score for
+        cell_t *target_cell = &T->cells[col][row];
+
+        // Cells we'll use to compute that score
+        cell_t *up_cell   = &T->cells[col][row-1];
+        cell_t *left_cell = &T->cells[col-1][row];
+        cell_t *diag_cell = &T->cells[col-1][row-1];
+
+        // Candidate scores
+        int up_score = up_cell->score - d;
+        int left_score = left_cell->score - d;
+        int diag_score = diag_cell->score + (s1[col-1] == s2[row-1] ? m : (-k));
+
+        // The current cell's score is the max of the three candidate scores
+        target_cell->score = max3(up_score, left_score, diag_score);
+
+        // Mark the relevant optimal paths.  Provided that a path's
+        // score is equal to the target cell's score, i.e. the maximum
+        // of the three candidate scores, it is an optimal path.
+        if (target_cell->score == diag_score) {
+                target_cell->diag = 1;
+        }
+        if (target_cell->score == up_score) {
+                target_cell->up = 1;
+        }
+        if (target_cell->score == left_score) {
+                target_cell->left = 1;
+        }
+}
+
+void
+process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int d)
+{
+        // Compute the score for each cell in the column
+        for (int row = 1; row < T->N; row++) {
+                // Compute the cell's score
+                process_cell(T, col, row, s1, s2, m, k, d);
+
+                // If we're printing the table and the absolute value of
+                // the current cell's score is greater than the one
+                // marked in the table, update the largest value
+                int current_abs_score = abs(T->cells[col][row].score);
+                if (tflag == 1 && current_abs_score > T->greatest_abs_val) {
+                        T->greatest_abs_val = current_abs_score;
+                }
+        }
+}
+
+void
 compute_table_scores(char *s1, char *s2, table_t *T, int m, int k, int d)
 {
-        int match = 0;
-        int diag_val = 0;
-        int gap_in_x = 0;
-        int gap_in_y = 0;
-
         // If we're printing the table, initialize the largest value
         if (tflag == 1) {
                 T->greatest_abs_val = 0;
@@ -245,34 +291,8 @@ compute_table_scores(char *s1, char *s2, table_t *T, int m, int k, int d)
 
         // Mark each cell with a score and any relevant directional
         // information
-        for (int i = 1; i < T->M; i++) {
-                for (int j = 1; j < T->N; j++) {
-                        // Compute the maximum score
-                        diag_val = (s1[i-1] == s2[j-1] ? m : (-k));
-                        match = T->cells[i-1][j-1].score + diag_val;
-                        gap_in_x = T->cells[i][j-1].score - d;
-                        gap_in_y = T->cells[i-1][j].score - d;
-                        T->cells[i][j].score = max3(match, gap_in_x, gap_in_y);
-
-                        // If we're printing the table, update the
-                        // largest value
-                        if (tflag == 1 &&
-                            abs(T->cells[i][j].score) > T->greatest_abs_val) {
-                                T->greatest_abs_val = abs(T->cells[i][j].score);
-                        }
-
-                        // Mark the relevant optimal paths.  Multiple
-                        // optimal paths are possible in a single cell.
-                        if (T->cells[i][j].score == match) {
-                                T->cells[i][j].diag = 1;
-                        }
-                        if (T->cells[i][j].score == gap_in_x) {
-                                T->cells[i][j].up = 1;
-                        }
-                        if (T->cells[i][j].score == gap_in_y) {
-                                T->cells[i][j].left = 1;
-                        }
-                }
+        for (int col = 1; col < T->M; col++) {
+                process_column(T, col, s1, s2, m, k, d);
         }
 }
 
