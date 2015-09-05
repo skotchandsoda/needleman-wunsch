@@ -13,6 +13,10 @@
 #include "format.h"
 #include "table.h"
 
+#define UNICODE_LEFTWARDS_ARROW "\u2190"
+#define UNICODE_UPWARDS_ARROW "\u2191"
+#define UNICODE_NORTH_WEST_ARROW "\u2196"
+
 // A zeroed cell_t for when we first allocate the table
 const cell_t DEFAULT_CELL = {0, 0, 0, 0, 0};
 
@@ -99,7 +103,7 @@ print_arrow(arrow_t a, int optimal_path, int col_width, int col, int row, char *
             if (optimal_path == 1) {
                     set_fmt(gap_fmt);
             }
-            printf("  %s ", (unicode == 1 ? "\u2190" : "<"));
+            printf("  %s ", (unicode == 1 ? UNICODE_LEFTWARDS_ARROW : "<"));
             break;
     case up:
             if (optimal_path == 1) {
@@ -107,13 +111,13 @@ print_arrow(arrow_t a, int optimal_path, int col_width, int col, int row, char *
             }
             printf("%*s",
                    (unicode == 1 ? col_width + 2: col_width),
-                   (unicode == 1 ? "\u2191" : "^"));
+                   (unicode == 1 ? UNICODE_UPWARDS_ARROW : "^"));
             break;
     case diag:
             if (optimal_path == 1) {
                     set_fmt((s1[col] == s2[row] ? match_fmt : mismatch_fmt));
             }
-            printf("  %s ", (unicode == 1 ? "\u2196" : "\\"));
+            printf("  %s ", (unicode == 1 ? UNICODE_NORTH_WEST_ARROW : "\\"));
             break;
     default:
             fprintf(stderr, "the impossible has happened; giving up\n");
