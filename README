@@ -22,12 +22,15 @@ DESCRIPTION
   suppressed with the '-q' flag.
 
   With the '-t' option, needleman-wunsch will print the score table
-  filled during the algorithm's run.  By default, needleman-wunsch will
-  use ASCII characters '<', '^', and '\' to represent left, up, and
-  diagonal direction arrows, respectively.  Portable though this may be,
-  it is somewhat ugly.  For a prettier table printout, use the '-u'
-  flag.  needleman-wunsch will then use Unicode characters (U+2190),
-  (U+), and (U+) instead.
+  filled during the algorithm's run.  The score table contains a score
+  for each cell, along with directional arrows representing optimal path
+  from that cell toward toward an aligned string.  By default,
+  needleman-wunsch will use ASCII characters '<', '^', and '\' to
+  represent left, up, and diagonal direction arrows, respectively.
+  Portable though this may be, it is somewhat ugly.  For a prettier
+  table printout, use the '-u' flag.  needleman-wunsch will then use
+  Unicode characters 'LEFTWARDS ARROW' (U+2190), 'UPWARDS ARROW'
+  (U+2191), and 'NORTH WEST ARROW (U+2196) instead.
 
   Note that the table printout will only be legible and useful if your
   input is relatively small.
@@ -49,55 +52,71 @@ BUILDING
 
 EXAMPLE
 
-  $ needleman-wunsch -h
-  usage: needleman-wunsch [-hqt] s1 s2 m k d
+  $ ./needleman-wunsch -h
+  usage: needleman-wunsch [-chiqstu] s1 s2 m k d
   Align two strings with the Needleman-Wunsch algorithm
   arguments:
-    s1   first string to align
-    s2   second string to align
-    m   score for matching characters
-    k   penalty for mismatched characters
-    d   penalty for a gap
+    s1   first string to align (the "top string")
+    s2   second string to align (the "side string")
+     m   match bonus
+     k   mismatch penalty
+     d   gap penalty
   options:
+    -c   color the output with ANSI escape sequences
     -h   print this message
-    -q   be quiet; don't print an optimal alignment for the input strings
-    -t   print the scores table (pretty-print it with awk or column)
-  $ needleman-wunsch GT GT 1 1 1
+    -i   print match, mismatch, and gap counts for each alignment pair
+    -q   be quiet; don't print the optimal alignments (cancels the '-i' flag)
+    -s   print additional statistics about the alignment pairs
+    -t   print the scores table; only useful for shorter input strings
+    -u   use unicode arrows when printing the scores table
+  $ ./needleman-wunsch GT GT 1 1 1
   GT
   GT
-  $ needleman-wunsch GT GA 1 1 1
+  $ ./needleman-wunsch GT GA 1 1 1
   GT
   GA
-  $ needleman-wunsch GAT GTA 1 1 1
+  $ ./needleman-wunsch GAT GTA 1 1 1
   G-AT
   GTA-
-  $ needleman-wunsch GCATGCU GATTACA 1 1 1
-  GCA-TGCU
-  G-ATTACA
-  $ needleman-wunsch -t GCATGCU GATTACA 1 1 1
-  * * G C A T G C U
-  * 0(X) -1(<) -2(<) -3(<) -4(<) -5(<) -6(<) -7(<)
-  G -1(^) 1(\) 0(^) -1(^) -2(^) -3(\) -4(^) -5(^)
-  A -2(^) 0(<) 0(\) 1(\) 0(^) -1(^) -2(^) -3(^)
-  T -3(^) -1(<) -1(\) 0(<) 2(\) 1(^) 0(^) -1(^)
-  T -4(^) -2(<) -2(\) -1(<) 1(\) 1(\) 0(\) -1(\)
-  A -5(^) -3(<) -3(\) -1(\) 0(<) 0(\) 0(\) -1(\)
-  C -6(^) -4(<) -2(\) -2(<) -1(<) -1(\) 1(\) 0(^)
-  A -7(^) -5(<) -3(<) -1(\) -2(^) -2(\) 0(<) 0(\)
-  GCA-TGCU
-  G-ATTACA
-  $ needleman-wunsch -tq GCATGCU GATTACA 1 1 1 | awk '
-  > {
-  > for (i = 1; i <= NF; i++)
-  >     printf "%6s", $i
-  > printf "\n"
-  > }'
-       *     *     G     C     A     T     G     C     U
-       *  0(X) -1(<) -2(<) -3(<) -4(<) -5(<) -6(<) -7(<)
-       G -1(^)  1(\)  0(^) -1(^) -2(^) -3(\) -4(^) -5(^)
-       A -2(^)  0(<)  0(\)  1(\)  0(^) -1(^) -2(^) -3(^)
-       T -3(^) -1(<) -1(\)  0(<)  2(\)  1(^)  0(^) -1(^)
-       T -4(^) -2(<) -2(\) -1(<)  1(\)  1(\)  0(\) -1(\)
-       A -5(^) -3(<) -3(\) -1(\)  0(<)  0(\)  0(\) -1(\)
-       C -6(^) -4(<) -2(\) -2(<) -1(<) -1(\)  1(\)  0(^)
-       A -7(^) -5(<) -3(<) -1(\) -2(^) -2(\)  0(<)  0(\)
+
+  GAT-
+  G-TA
+  $ ./needleman-wunsch -s GAT GTA 1 1 1
+  G-AT
+  GTA-
+
+  GAT-
+  G-TA
+
+  2 optimal alignments
+  Optimal score is 0
+  $ ./needleman-wunsch -i GAT GTA 1 1 1
+  G-AT
+  GTA-
+  2 matches, 0 mismatches, 2 gaps
+
+  GAT-
+  G-TA
+  2 matches, 0 mismatches, 2 gaps
+  $ ./needleman-wunsch -q GCATGCU GATTACA 1 1 1
+  $ ./needleman-wunsch -q -s -t GCATGCU GATTACA 1 1 1
+  3 optimal alignments
+  Optimal score is 0
+
+  *     *     G     C     A     T     G     C     U
+                                                   
+  *    +0  < -1  < -2  < -3  < -4  < -5  < -6  < -7
+        ^  \                       \               
+  G    -1    +1  < +0  < -1  < -2  < -3  < -4  < -5
+        ^     ^  \     \                           
+  A    -2    +0    +0    +1  < +0  < -1  < -2  < -3
+        ^     ^  \  ^     ^  \                     
+  T    -3    -1    -1    +0    +2  < +1  < +0  < -1
+        ^     ^  \  ^     ^  \  ^  \     \     \   
+  T    -4    -2    -2    -1    +1    +1  < +0  < -1
+        ^     ^  \  ^  \        ^  \  ^  \     \   
+  A    -5    -3    -3    -1    +0    +0    +0  < -1
+        ^     ^  \        ^     ^  \  ^  \         
+  C    -6    -4    -2    -2    -1    -1    +1  < +0
+        ^     ^     ^  \        ^  \  ^     ^  \   
+  A    -7    -5    -3    -1  < -2    -2    +0    +0
