@@ -42,15 +42,15 @@ usage()
             "options:\n"                                                \
             "  -c   color the output with ANSI escape sequences\n"      \
             "  -h   print this message\n"                               \
-            "  -i   print match/mismatch/gap counts for each "          \
-            "alignment pair (the '-q' flag\n"                           \
-            "          cancels this flag)\n"                            \
-            "  -q   be quiet; don't print the optimal alignments\n"     \
+            "  -i   print match, mismatch, and gap counts for each "    \
+            "alignment pair\n"                                          \
+            "  -q   be quiet; don't print the optimal alignments "      \
+            "(cancels the '-i' flag)\n"                                 \
             "  -s   print additional statistics about the "             \
             "alignment pairs\n"                                         \
-            "  -t   print the scores table;  only useful for "          \
+            "  -t   print the scores table; only useful for "           \
             "shorter input strings\n"                                   \
-            "  -u   use unicode arrows when printing the table\n"       \
+            "  -u   use unicode arrows when printing the scores table\n" \
         );
     exit(1);
 }
@@ -100,9 +100,9 @@ print_aligned_strings_and_counts(char *X, char *Y, int n, int print_counts)
         // Print match/mismatch/gap counts if iflag was set
         if (print_counts == 1) {
                 printf("%d match%s, %d mismatch%s, %d gap%s\n",
-                       match_count, (match_count > 1 ? "es" : ""),
-                       mismatch_count, (mismatch_count > 1 ? "es" : ""),
-                       gap_count, (gap_count > 1 ? "s" : ""));
+                       match_count, (match_count == 1 ? "" : "es"),
+                       mismatch_count, (mismatch_count == 1 ? "" : "es"),
+                       gap_count, (gap_count == 1 ? "" : "s"));
         }
 }
 
