@@ -14,7 +14,9 @@ typedef struct cell {
         int diag;
         int left;
         int up;
+        int match;
         int in_optimal_path;
+        int processed;
 } cell_t;
 
 // table_t, a type describing an MxN table of cells (cell_t)

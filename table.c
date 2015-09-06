@@ -18,7 +18,7 @@
 #define UNICODE_NORTH_WEST_ARROW "\u2196"
 
 // A zeroed cell_t for when we first allocate the table
-const cell_t DEFAULT_CELL = {0, 0, 0, 0, 0};
+const cell_t DEFAULT_CELL = {0, 0, 0, 0, 0, 0, 0};
 
 table_t *
 alloc_table(int M, int N)
