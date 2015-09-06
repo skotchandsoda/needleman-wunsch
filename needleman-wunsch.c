@@ -7,6 +7,7 @@
 //                    (see http://en.wikipedia.org/Needleman–Wunsch_algorithm)
 
 #include <math.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,38 +22,39 @@
 extern int cflag;
 
 // Global flags defined in needleman-wunsch.c (this file)
-int iflag = 0;
+int lflag = 0;
 int qflag = 0;
 int sflag = 0;
 int tflag = 0;
 int uflag = 0;
 
+int num_threads = 1;
+
 void
 usage()
 {
-    fprintf(stderr,
-            "usage: needleman-wunsch [-chiqstu] s1 s2 m k d\n"          \
-            "Align two strings with the Needleman-Wunsch algorithm\n"   \
-            "arguments:\n"                                              \
-            "  s1   first string to align (the \"top string\")\n"       \
-            "  s2   second string to align (the \"side string\")\n"     \
-            "   m   match bonus\n"                                      \
-            "   k   mismatch penalty\n"                                 \
-            "   d   gap penalty\n"                                      \
-            "options:\n"                                                \
-            "  -c   color the output with ANSI escape sequences\n"      \
-            "  -h   print this message\n"                               \
-            "  -i   print match, mismatch, and gap counts for each "    \
-            "alignment pair\n"                                          \
-            "  -q   be quiet; don't print the optimal alignments "      \
-            "(cancels the '-i' flag)\n"                                 \
-            "  -s   print additional statistics about the "             \
-            "alignment pairs\n"                                         \
-            "  -t   print the scores table; only useful for "           \
-            "shorter input strings\n"                                   \
-            "  -u   use unicode arrows when printing the scores table\n" \
-        );
-    exit(1);
+        fprintf(stderr,"\
+usage: needleman-wunsch [-c][-h][-l]\n\
+           [-p num_threads][-q][-s][-t][-u] s1 s2 m k g\n\
+Align two strings with the Needleman-Wunsch algorithm\n\
+operands:\n\
+  s1   first string to align (the top string)\n\
+  s2   second string to align (the side string)\n\
+   m   match bonus\n\
+   k   mismatch penalty\n\
+   g   gap penalty\n\
+options:\n\
+  -c   color the output with ANSI escape sequences\n\
+  -h   print this usage message\n\
+  -l   print match, mismatch, and gap counts for each alignment pair\n\
+  -p num_threads\n\
+       parallelize the computation with 'num_threads' threads (must be >1)\n\
+  -q   be quiet and don't print the alignmened strings (cancels the '-i' flag)\n\
+  -s   summarize the algorithm's run\n\
+  -t   print the scores table; probably only useful for shorter input strings\n\
+  -u   use unicode arrows when printing the scores table\n"
+);
+        exit(1);
 }
 
 void
@@ -136,7 +138,7 @@ walk_table_recursively(char *s1,
                         if (soln_count > 0) {
                                 printf("\n");
                         }
-                        print_aligned_strings_and_counts(X, Y, n-1, iflag);
+                        print_aligned_strings_and_counts(X, Y, n-1, lflag);
                 }
                 soln_count = soln_count + 1;
         }
@@ -250,7 +252,14 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
         // Candidate scores
         int up_score = up_cell->score - d;
         int left_score = left_cell->score - d;
-        int diag_score = diag_cell->score + (s1[col-1] == s2[row-1] ? m : (-k));
+        int diag_score = 0;
+        if (s1[col-1] == s2[row-1]) {
+                diag_score = diag_cell->score + m;
+                target_cell->match = 1;
+        } else {
+                diag_score = diag_cell->score - k;
+                target_cell->match = 0;
+        }
 
         // The current cell's score is the max of the three candidate scores
         target_cell->score = max3(up_score, left_score, diag_score);
@@ -267,6 +276,8 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
         if (target_cell->score == left_score) {
                 target_cell->left = 1;
         }
+
+        target_cell->processed = 1;
 }
 
 void
@@ -353,7 +364,7 @@ main(int argc, char **argv)
         extern char *optarg;
         extern int optind;
         int c;
-        while ((c = getopt(argc, argv, "chiqstu")) != -1) {
+        while ((c = getopt(argc, argv, "chlp:qstu")) != -1) {
                 switch (c) {
                 case 'c':
                         cflag = 1;
@@ -361,8 +372,17 @@ main(int argc, char **argv)
                 case 'h':
                         usage();
                         break;
-                case 'i':
-                        iflag = 1;
+                case 'l':
+                        lflag = 1;
+                        break;
+                case 'p':
+                        num_threads = atoi(optarg);
+                        if (num_threads < 2) {
+                                fprintf(stderr, "Error: num_threads == %d; " \
+                                        "num_threads must be greater than 1\n",
+                                        num_threads);
+                                usage();
+                        }
                         break;
                 case 'q':
                         qflag = 1;
@@ -395,6 +415,8 @@ main(int argc, char **argv)
                 k = atoi(argv[optind + 3]);
                 d = atoi(argv[optind + 4]);
         }
+
+        fprintf(stderr, "num_threads == %d\n", num_threads);
 
         // Solve
         needleman_wunsch(s1, s2, m, k, d);
