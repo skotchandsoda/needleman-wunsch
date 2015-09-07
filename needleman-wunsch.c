@@ -22,21 +22,6 @@
 /* Global flags defined in format.h */
 extern int cflag;
 
-/* Global flags defined here */
-extern int lflag;
-extern int qflag;
-extern int sflag;
-extern int tflag;
-extern int uflag;
-
-/* Threading globals */
-extern int num_threads;
-
-extern struct worker_thread *worker_threads;
-
-/* Global computation instance */
-extern computation_t *comp;
-
 void
 usage()
 {
@@ -327,7 +312,6 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
 void
 process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int g)
 {
-//        fprintf(stderr, "Computing column %d\n", col);
         // Compute the score for each cell in the column
         for (int row = 1; row < T->N; row++) {
                 // Compute the cell's score
@@ -367,7 +351,7 @@ compute_table_scores()
         }
 
         // Allocate storage for thread ids and starting columns
-        worker_threads = (struct worker_thread *)malloc(num_threads * sizeof(struct worker_thread));
+        worker_threads = (worker_thread_t *)malloc(num_threads * sizeof(worker_thread_t));
         if (NULL == worker_threads) {
                 fprintf(stderr, "malloc failed");
                 exit(1);
@@ -416,7 +400,7 @@ init_computation(char *s1, char *s2, int m, int k, int g)
 
         // Create and initialize the scores table
         C->scores_table = alloc_table(M, N);
-        init_table(C->scores_table, g);
+        init_table(C->scores_table, g, (num_threads > 1));
 
         C->top_string = s1;
         C->side_string = s2;
@@ -430,7 +414,7 @@ init_computation(char *s1, char *s2, int m, int k, int g)
 void
 free_computation(computation_t *C)
 {
-        free_table(C->scores_table);
+        free_table(C->scores_table, (num_threads > 1));
         free(C);
 }
 

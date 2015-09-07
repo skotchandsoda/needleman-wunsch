@@ -13,8 +13,8 @@
 #include "format.h"
 #include "table.h"
 
-#define UNICODE_LEFTWARDS_ARROW "\u2190"
-#define UNICODE_UPWARDS_ARROW "\u2191"
+#define UNICODE_LEFTWARDS_ARROW  "\u2190"
+#define UNICODE_UPWARDS_ARROW    "\u2191"
 #define UNICODE_NORTH_WEST_ARROW "\u2196"
 
 // A zeroed cell_t for when we first allocate the table
@@ -58,7 +58,7 @@ alloc_table(int M, int N)
 }
 
 void
-free_table(table_t *T)
+free_table(table_t *T, int multiple_threads)
 {
         // Free each subarray of cells
         for (int i = 0; i < T->M; i++) {
@@ -66,10 +66,12 @@ free_table(table_t *T)
         }
 
         /* Destroy mutex and conditional variable objects */
-        for (int i = 0; i < T->M; i++) {
-                for (int j = 0; j < T->N; j++) {
-                        pthread_mutex_destroy(&T->cells[i][j].score_mutex);
-                        pthread_cond_destroy(&T->cells[i][j].processed_cv);
+        if (1 == multiple_threads) {
+                for (int i = 0; i < T->M; i++) {
+                        for (int j = 0; j < T->N; j++) {
+                                pthread_mutex_destroy(&T->cells[i][j].score_mutex);
+                                pthread_cond_destroy(&T->cells[i][j].processed_cv);
+                        }
                 }
         }
 
@@ -81,13 +83,17 @@ free_table(table_t *T)
 }
 
 void
-init_table(table_t *T, int d)
+init_table(table_t *T, int d, int multiple_threads)
 {
         /* Initialize all mutex and condition variable objects */
-        for (int i = 0; i < T->M; i++) {
-                for (int j = 0; j < T->N; j++) {
-                        pthread_mutex_init(&T->cells[i][j].score_mutex, NULL);
-                        pthread_cond_init (&T->cells[i][j].processed_cv, NULL);
+        if (1 == multiple_threads) {
+                for (int i = 0; i < T->M; i++) {
+                        for (int j = 0; j < T->N; j++) {
+                                pthread_mutex_init(&T->cells[i][j].score_mutex,
+                                                   NULL);
+                                pthread_cond_init (&T->cells[i][j].processed_cv,
+                                                   NULL);
+                        }
                 }
         }
 
