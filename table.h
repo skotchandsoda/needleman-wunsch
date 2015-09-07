@@ -5,6 +5,8 @@
 
 // table.h - prototypes for table.c
 
+#include <pthread.h>
+
 #ifndef TABLE_H
 #define TABLE_H
 
@@ -17,6 +19,8 @@ typedef struct cell {
         int match;
         int in_optimal_path;
         int processed;
+        pthread_mutex_t score_mutex;
+        pthread_cond_t processed_cv;
 } cell_t;
 
 // table_t, a type describing an MxN table of cells (cell_t)

@@ -65,6 +65,14 @@ free_table(table_t *T)
                 free(T->cells[i]);
         }
 
+        /* Destroy mutex and conditional variable objects */
+        for (int i = 0; i < T->M; i++) {
+                for (int j = 0; j < T->N; j++) {
+                        pthread_mutex_destroy(&T->cells[i][j].score_mutex);
+                        pthread_cond_destroy(&T->cells[i][j].processed_cv);
+                }
+        }
+
         // Free the top-level array of cell pointers
         free(T->cells);
 
@@ -75,6 +83,14 @@ free_table(table_t *T)
 void
 init_table(table_t *T, int d)
 {
+        /* Initialize all mutex and condition variable objects */
+        for (int i = 0; i < T->M; i++) {
+                for (int j = 0; j < T->N; j++) {
+                        pthread_mutex_init(&T->cells[i][j].score_mutex, NULL);
+                        pthread_cond_init (&T->cells[i][j].processed_cv, NULL);
+                }
+        }
+
         // Initialize the table
         // 0,0 is 0 and has no direction
         T->cells[0][0].score = 0;

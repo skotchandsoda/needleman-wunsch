@@ -31,12 +31,12 @@ int uflag = 0;
 /* Threading globals */
 int num_threads = 1;
 
-struct tinfo {
+struct worker_thread {
         pthread_t thread_id;
-        int local_id;
+        int start_col; // Column to process first in the scores table
 };
 
-struct tinfo *thread_info;
+struct worker_thread *worker_threads;
 
 /* Instance of a Needleman-Wunsch alignment computation */
 typedef struct computation {
@@ -48,6 +48,7 @@ typedef struct computation {
         table_t *scores_table;
 } computation_t;
 
+/* Global computation instance */
 computation_t *comp;
 
 void
@@ -66,7 +67,7 @@ operands:\n\
 options:\n\
   -c   color the output with ANSI escape sequences\n\
   -h   print this usage message\n\
-  -l   print match, mismatch, and gap counts for each alignment pair\n\
+  -l   list match, mismatch, and gap counts after each alignment pair\n\
   -p num_threads\n\
        parallelize the computation with 'num_threads' threads (must be >1)\n\
   -q   be quiet and don't print the alignmened strings (cancels the '-l' flag)\n\
@@ -266,15 +267,11 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
 
         // Cells we'll use to compute that score
         cell_t *up_cell   = &T->cells[col][row-1];
-        cell_t *left_cell = &T->cells[col-1][row];
         cell_t *diag_cell = &T->cells[col-1][row-1];
+        cell_t *left_cell = &T->cells[col-1][row];
 
         // Candidate scores
-        while (up_cell->processed == 0);
         int up_score = up_cell->score - g;
-        while (left_cell->processed == 0);
-        int left_score = left_cell->score - g;
-        while (diag_cell->processed == 0);
         int diag_score = 0;
         if (s1[col-1] == s2[row-1]) {
                 diag_score = diag_cell->score + m;
@@ -284,10 +281,41 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
                 target_cell->match = 0;
         }
 
+        /*
+         * BEGIN CRITICAL SECTIONS
+         */
+//#if 0
+        /* Lock current cell's score mutex and process the cell */
+        pthread_mutex_lock(&target_cell->score_mutex);
+
+        /* Wait for signal that left_cell is processed */
+        pthread_mutex_lock(&left_cell->score_mutex);
+        while (left_cell->processed == 0) {
+                pthread_cond_wait(&left_cell->processed_cv, &left_cell->score_mutex);
+        }
+        int left_score = left_cell->score - g;
+        pthread_mutex_unlock(&left_cell->score_mutex);
+
         // The current cell's score is the max of the three candidate scores
         target_cell->score = max3(up_score, left_score, diag_score);
 
-        // Mark the relevant optimal paths.  Provided that a path's
+        /* We've set the cell's score, so mark it as processed */
+        target_cell->processed = 1;
+
+        /* Signal the waiting thread and release the score mutex */
+        pthread_cond_signal(&target_cell->processed_cv);
+        pthread_mutex_unlock(&target_cell->score_mutex);
+//#endif
+        /*
+         * END CRITICAL SECTIONS
+         */
+
+        /* while (left_cell->processed == 0); */
+        /* int left_score = left_cell->score - g; */
+        /* target_cell->score = max3(up_score, left_score, diag_score); */
+        /* target_cell->processed = 1; */
+
+        // Mark the optimal paths.  Provided that a path's
         // score is equal to the target cell's score, i.e. the maximum
         // of the three candidate scores, it is an optimal path.
         if (target_cell->score == diag_score) {
@@ -299,8 +327,6 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
         if (target_cell->score == left_score) {
                 target_cell->left = 1;
         }
-
-        target_cell->processed = 1;
 }
 
 void
@@ -325,7 +351,7 @@ process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int g)
 void *
 process_column_set(void *start_col)
 {
-        int current_col = *(int *)start_col;
+        int current_col = *((int *)start_col);
         while (current_col < comp->scores_table->M) {
                 process_column(comp->scores_table, current_col,
                                comp->top_string, comp->side_string,
@@ -345,35 +371,35 @@ compute_table_scores()
                 comp->scores_table->greatest_abs_val = 0;
         }
 
-        // Allocate storage for thread ids
-        thread_info = (struct tinfo *)malloc(num_threads * sizeof(struct tinfo));
-        if (NULL == thread_info) {
+        // Allocate storage for thread ids and starting columns
+        worker_threads = (struct worker_thread *)malloc(num_threads * sizeof(struct worker_thread));
+        if (NULL == worker_threads) {
                 fprintf(stderr, "malloc failed");
                 exit(1);
         }
 
-        // Spawn threads to process sets of columns
+        // Spawn worker threads to process sets of columns
         for (int i = 0; i < num_threads; i++) {
-                thread_info[i].local_id = i + 1;
-                int res = pthread_create(&thread_info[i].thread_id, NULL,
+                worker_threads[i].start_col = i + 1;
+                int res = pthread_create(&worker_threads[i].thread_id, NULL,
                                          process_column_set,
-                                         &thread_info[i].local_id);
+                                         &worker_threads[i].start_col);
                 if (0 != res) {
                         perror("pthread_create failed");
                         exit(1);
                 }
         }
 
-        // Join the threads
+        // Join the worker threads
         for (int i = 0; i < num_threads; i++) {
-                int res = pthread_join(thread_info[i].thread_id, NULL);
+                int res = pthread_join(worker_threads[i].thread_id, NULL);
                 if (0 != res) {
                         perror("pthread_join failed");
                 }
         }
 
         // Clean up
-        free(thread_info);
+        free(worker_threads);
 }
 
 /* Allocate and initialize a Needleman-Wunsch alignment computation */
@@ -442,8 +468,6 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int g)
                 print_table(C->scores_table, C->top_string, C->side_string, uflag);
         }
 
-        fflush(stderr);
-
         // Clean up
         free_computation(C);
 }
@@ -479,7 +503,6 @@ main(int argc, char **argv)
                                 fprintf(stderr, "Error: num_threads == %d; " \
                                         "num_threads must be greater than 1\n",
                                         num_threads);
-                                usage();
                         }
                         break;
                 case 'q':
@@ -501,7 +524,7 @@ main(int argc, char **argv)
                 }
         }
 
-        // Parse positional arguments
+        // Parse operands
         if ((optind + 5) > argc) {
                 usage();
         } else {
