@@ -7,7 +7,7 @@ PROG = needleman-wunsch
 SRC = needleman-wunsch.c table.c format.c
 INC = table.h format.h
 OBJ = ${SRC:.c=.o}
-CFLAGS = -g
+CFLAGS = -g -O2
 LIB = -lpthread
 
 .SUFFIXES:
