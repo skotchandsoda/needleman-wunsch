@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include "format.h"
+#include "needleman-wunsch.h"
 #include "table.h"
 
 #define GAP_CHAR '-'
@@ -22,34 +23,19 @@
 extern int cflag;
 
 /* Global flags defined here */
-int lflag = 0;
-int qflag = 0;
-int sflag = 0;
-int tflag = 0;
-int uflag = 0;
+extern int lflag;
+extern int qflag;
+extern int sflag;
+extern int tflag;
+extern int uflag;
 
 /* Threading globals */
-int num_threads = 1;
+extern int num_threads;
 
-struct worker_thread {
-        pthread_t thread_id;
-        int start_col; // Column to process first in the scores table
-};
-
-struct worker_thread *worker_threads;
-
-/* Instance of a Needleman-Wunsch alignment computation */
-typedef struct computation {
-        char *top_string;
-        char *side_string;
-        int match_score;
-        int mismatch_penalty;
-        int gap_penalty;
-        table_t *scores_table;
-} computation_t;
+extern struct worker_thread *worker_threads;
 
 /* Global computation instance */
-computation_t *comp;
+extern computation_t *comp;
 
 void
 usage()
@@ -265,7 +251,7 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
         // Cell we want to compute the score for
         cell_t *target_cell = &T->cells[col][row];
 
-        // Cells we'll use to compute that score
+        // Cells we'll use to compute target_cell's score
         cell_t *up_cell   = &T->cells[col][row-1];
         cell_t *diag_cell = &T->cells[col-1][row-1];
         cell_t *left_cell = &T->cells[col-1][row];
@@ -284,17 +270,24 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
         /*
          * BEGIN CRITICAL SECTIONS
          */
-//#if 0
-        /* Lock current cell's score mutex and process the cell */
-        pthread_mutex_lock(&target_cell->score_mutex);
 
-        /* Wait for signal that left_cell is processed */
-        pthread_mutex_lock(&left_cell->score_mutex);
-        while (left_cell->processed == 0) {
-                pthread_cond_wait(&left_cell->processed_cv, &left_cell->score_mutex);
+        if (num_threads > 1) {
+                /* Lock current cell's score mutex and process the cell */
+                pthread_mutex_lock(&target_cell->score_mutex);
+
+                /* Wait for signal that left_cell is processed */
+                pthread_mutex_lock(&left_cell->score_mutex);
+                while (left_cell->processed == 0) {
+                        pthread_cond_wait(&left_cell->processed_cv,
+                                          &left_cell->score_mutex);
+                }
         }
+
         int left_score = left_cell->score - g;
-        pthread_mutex_unlock(&left_cell->score_mutex);
+
+        if (num_threads > 1) {
+                pthread_mutex_unlock(&left_cell->score_mutex);
+        }
 
         // The current cell's score is the max of the three candidate scores
         target_cell->score = max3(up_score, left_score, diag_score);
@@ -303,9 +296,11 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
         target_cell->processed = 1;
 
         /* Signal the waiting thread and release the score mutex */
-        pthread_cond_signal(&target_cell->processed_cv);
-        pthread_mutex_unlock(&target_cell->score_mutex);
-//#endif
+        if (num_threads > 1) {
+                pthread_cond_signal(&target_cell->processed_cv);
+                pthread_mutex_unlock(&target_cell->score_mutex);
+        }
+
         /*
          * END CRITICAL SECTIONS
          */
