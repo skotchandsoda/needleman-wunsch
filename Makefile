@@ -8,6 +8,7 @@ SRC = needleman-wunsch.c table.c format.c
 INC = table.h format.h
 OBJ = ${SRC:.c=.o}
 CFLAGS = -g
+LIB = -lpthread
 
 .SUFFIXES:
 .SUFFIXES: .o .c
@@ -18,7 +19,7 @@ CFLAGS = -g
 all: $(PROG)
 
 $(PROG): $(OBJ)
-	$(CC) -o $@ $(OBJ)
+	$(CC) -o $@ $(OBJ) $(LIB)
 
 $(OBJ): $(INC)
 

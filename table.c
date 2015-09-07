@@ -78,18 +78,21 @@ init_table(table_t *T, int d)
         // Initialize the table
         // 0,0 is 0 and has no direction
         T->cells[0][0].score = 0;
+        T->cells[0][0].processed = 1;
 
 
         // Rest of top row has score (-i)*d and LEFT direction
         for (int i = 1; i < T->M; i++) {
                 T->cells[i][0].score = (-i) * d;
                 T->cells[i][0].left = 1;
+                T->cells[i][0].processed = 1;
         }
 
         // Rest of leftmost column has score (-j)*d and UP direction
         for (int j = 1; j < T->N; j++) {
                 T->cells[0][j].score = (-j) * d;
                 T->cells[0][j].up = 1;
+                T->cells[0][j].processed = 1;
         }
 }
 

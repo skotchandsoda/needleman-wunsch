@@ -18,22 +18,42 @@
 
 #define GAP_CHAR '-'
 
-// Global flags defined in format.h
+/* Global flags defined in format.h */
 extern int cflag;
 
-// Global flags defined in needleman-wunsch.c (this file)
+/* Global flags defined here */
 int lflag = 0;
 int qflag = 0;
 int sflag = 0;
 int tflag = 0;
 int uflag = 0;
 
+/* Threading globals */
 int num_threads = 1;
+
+struct tinfo {
+        pthread_t thread_id;
+        int local_id;
+};
+
+struct tinfo *thread_info;
+
+/* Instance of a Needleman-Wunsch alignment computation */
+typedef struct computation {
+        char *top_string;
+        char *side_string;
+        int match_score;
+        int mismatch_penalty;
+        int gap_penalty;
+        table_t *scores_table;
+} computation_t;
+
+computation_t *comp;
 
 void
 usage()
 {
-        fprintf(stderr,"\
+        fprintf(stderr, "\
 usage: needleman-wunsch [-c][-h][-l]\n\
            [-p num_threads][-q][-s][-t][-u] s1 s2 m k g\n\
 Align two strings with the Needleman-Wunsch algorithm\n\
@@ -49,7 +69,7 @@ options:\n\
   -l   print match, mismatch, and gap counts for each alignment pair\n\
   -p num_threads\n\
        parallelize the computation with 'num_threads' threads (must be >1)\n\
-  -q   be quiet and don't print the alignmened strings (cancels the '-i' flag)\n\
+  -q   be quiet and don't print the alignmened strings (cancels the '-l' flag)\n\
   -s   summarize the algorithm's run\n\
   -t   print the scores table; probably only useful for shorter input strings\n\
   -u   use unicode arrows when printing the scores table\n"
@@ -60,7 +80,7 @@ options:\n\
 void
 print_aligned_string_char(char *s1, char *s2, int n)
 {
-        // Format the output character as defined in format.h
+        /* Format the output character as defined in format.h */
         if (s1[n] == s2[n]) {
                 set_fmt(match_char_fmt);
         } else if (s1[n] == GAP_CHAR || s2[n] == GAP_CHAR) {
@@ -72,7 +92,7 @@ print_aligned_string_char(char *s1, char *s2, int n)
                 exit(1);
         }
 
-        // Print the character
+        /* Print the character */
         printf("%c", s1[n]);
 
         reset_fmt();
@@ -85,7 +105,7 @@ print_aligned_strings_and_counts(char *X, char *Y, int n, int print_counts)
         int mismatch_count = 0;
         int gap_count = 0;
 
-        // Print the strings backwards
+        /* Print the strings backwards */
         for (int i = n; i > -1; i--) {
                 print_aligned_string_char(X, Y, i);
                 if (print_counts == 1) {
@@ -214,8 +234,8 @@ mark_optimal_path_in_table(char *s1, char *s2, table_t *T)
 
         // Clean up buffers if we allocated for them
         if (qflag != 1) {
-            free(X);
-            free(Y);
+                free(X);
+                free(Y);
         }
         // Print details about the algorithm's run, i.e. number of
         // optimal alignments and maximum possible score
@@ -239,7 +259,7 @@ max3(int a, int b, int c)
 }
 
 void
-process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int d)
+process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int g)
 {
         // Cell we want to compute the score for
         cell_t *target_cell = &T->cells[col][row];
@@ -250,8 +270,11 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
         cell_t *diag_cell = &T->cells[col-1][row-1];
 
         // Candidate scores
-        int up_score = up_cell->score - d;
-        int left_score = left_cell->score - d;
+        while (up_cell->processed == 0);
+        int up_score = up_cell->score - g;
+        while (left_cell->processed == 0);
+        int left_score = left_cell->score - g;
+        while (diag_cell->processed == 0);
         int diag_score = 0;
         if (s1[col-1] == s2[row-1]) {
                 diag_score = diag_cell->score + m;
@@ -281,12 +304,13 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
 }
 
 void
-process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int d)
+process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int g)
 {
+//        fprintf(stderr, "Computing column %d\n", col);
         // Compute the score for each cell in the column
         for (int row = 1; row < T->N; row++) {
                 // Compute the cell's score
-                process_cell(T, col, row, s1, s2, m, k, d);
+                process_cell(T, col, row, s1, s2, m, k, g);
 
                 // If we're printing the table and the absolute value of
                 // the current cell's score is greater than the one
@@ -298,25 +322,71 @@ process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int d)
         }
 }
 
+void *
+process_column_set(void *start_col)
+{
+        int current_col = *(int *)start_col;
+        while (current_col < comp->scores_table->M) {
+                process_column(comp->scores_table, current_col,
+                               comp->top_string, comp->side_string,
+                               comp->match_score, comp->mismatch_penalty,
+                               comp->gap_penalty);
+                current_col = current_col + num_threads;
+        }
+
+        return NULL;
+}
+
 void
-compute_table_scores(char *s1, char *s2, table_t *T, int m, int k, int d)
+compute_table_scores()
 {
         // If we're printing the table, initialize the largest value
         if (tflag == 1) {
-                T->greatest_abs_val = 0;
+                comp->scores_table->greatest_abs_val = 0;
         }
 
-        // Mark each cell with a score and any relevant directional
-        // information
-        for (int col = 1; col < T->M; col++) {
-                process_column(T, col, s1, s2, m, k, d);
+        // Allocate storage for thread ids
+        thread_info = (struct tinfo *)malloc(num_threads * sizeof(struct tinfo));
+        if (NULL == thread_info) {
+                fprintf(stderr, "malloc failed");
+                exit(1);
         }
+
+        // Spawn threads to process sets of columns
+        for (int i = 0; i < num_threads; i++) {
+                thread_info[i].local_id = i + 1;
+                int res = pthread_create(&thread_info[i].thread_id, NULL,
+                                         process_column_set,
+                                         &thread_info[i].local_id);
+                if (0 != res) {
+                        perror("pthread_create failed");
+                        exit(1);
+                }
+        }
+
+        // Join the threads
+        for (int i = 0; i < num_threads; i++) {
+                int res = pthread_join(thread_info[i].thread_id, NULL);
+                if (0 != res) {
+                        perror("pthread_join failed");
+                }
+        }
+
+        // Clean up
+        free(thread_info);
 }
 
-
-void
-needleman_wunsch(char *s1, char *s2, int m, int k, int d)
+/* Allocate and initialize a Needleman-Wunsch alignment computation */
+computation_t *
+init_computation(char *s1, char *s2, int m, int k, int g)
 {
+        // Allocate for alignment computation instance
+        computation_t *C = (computation_t *)malloc(sizeof(computation_t));
+        if (NULL == C) {
+                perror("malloc failed");
+                exit(1);
+        }
+
         // We use an MxN table (M cols, N rows).  We add 1 to each of
         // the input strings' lengths to make room for the base
         // row/column (see init_table)
@@ -324,17 +394,43 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int d)
         int N = strlen(s2) + 1;
 
         // Create and initialize the scores table
-        table_t *T = alloc_table(M, N);
-        init_table(T, d);
+        C->scores_table = alloc_table(M, N);
+        init_table(C->scores_table, g);
+
+        C->top_string = s1;
+        C->side_string = s2;
+        C->match_score = m;
+        C->mismatch_penalty = k;
+        C->gap_penalty = g;
+
+        return C;
+}
+
+void
+free_computation(computation_t *C)
+{
+        free_table(C->scores_table);
+        free(C);
+}
+
+void
+needleman_wunsch(char *s1, char *s2, int m, int k, int g)
+{
+        // Initialize computation
+        computation_t *C = init_computation(s1, s2, m, k, g);
+
+        // Set global computation pointer
+        comp = C;
 
         // Fill out table, i.e. compute the optimal score
-        compute_table_scores(s1, s2, T, m, k, d);
+        compute_table_scores();
 
         // Walk the table.  Mark the optimal path if tflag is set, print
         // the results of the algorithm's run if sflag is set, and print
         // the aligned strings if qflag is not set
         if (qflag != 1 || sflag == 1 || tflag == 1) {
-                mark_optimal_path_in_table(s1, s2, T);
+                mark_optimal_path_in_table(C->top_string, C->side_string,
+                                           C->scores_table);
         }
 
         // Print table if tflag was set
@@ -343,11 +439,13 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int d)
                 if (qflag != 1 || sflag == 1) {
                         printf("\n");
                 }
-                print_table(T, s1, s2, uflag);
+                print_table(C->scores_table, C->top_string, C->side_string, uflag);
         }
 
+        fflush(stderr);
+
         // Clean up
-        free_table(T);
+        free_computation(C);
 }
 
 int
@@ -358,7 +456,7 @@ main(int argc, char **argv)
         char *s2;
 
         // Scoring values
-        int m, k, d;
+        int m, k, g;
 
         // Parse option flags
         extern char *optarg;
@@ -413,13 +511,11 @@ main(int argc, char **argv)
                 // Scoring values
                 m = atoi(argv[optind + 2]);
                 k = atoi(argv[optind + 3]);
-                d = atoi(argv[optind + 4]);
+                g = atoi(argv[optind + 4]);
         }
 
-        fprintf(stderr, "num_threads == %d\n", num_threads);
-
         // Solve
-        needleman_wunsch(s1, s2, m, k, d);
+        needleman_wunsch(s1, s2, m, k, g);
 
         return 0;
 }
