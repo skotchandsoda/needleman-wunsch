@@ -6,6 +6,7 @@
 // needleman-wunsch - align two strings with the Needleman-Wunsch algorithm
 //                    (see http://en.wikipedia.org/Needleman–Wunsch_algorithm)
 
+#include <ctype.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -18,6 +19,8 @@
 #include "table.h"
 
 #define GAP_CHAR '-'
+
+#define INPUT_STRING_BASE_SIZE 4096
 
 /* Global flags defined in format.h */
 extern int cflag;
@@ -451,6 +454,85 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int g)
         free_computation(C);
 }
 
+void
+stdin_check_fgetc_err_and_eof(int eof_ok)
+{
+        /* Verify we didn't get an error */
+        if (0 != ferror(stdin)) {
+                perror("fgetc failed");
+                exit(1);
+        }
+
+        /* Verify we're not already at the end of stdin */
+        if (1 != eof_ok) {
+                if (0 != feof(stdin)) {
+                        fprintf(stderr, "error: file ended too early\n");
+                        exit(1);
+                }
+        }
+}
+
+char *
+read_sequence_from_stdin(int eof_ok)
+{
+        int c;
+        int i = 0;
+        int s_max = INPUT_STRING_BASE_SIZE;
+        char *s = (char *)malloc(s_max * sizeof(char));
+        while (EOF != (c = fgetc(stdin))) {
+                if (isspace(c)) {
+                        break;
+                } else {
+                        s[i] = (char)c;
+                        i = i + 1;
+                }
+
+                /* If we're out of room, allocate more space */
+                if (s_max == i) {
+                        s = realloc(s, s_max + INPUT_STRING_BASE_SIZE);
+                        if (NULL == s) {
+                                perror("realloc failed");
+                                exit(1);
+                        } else {
+                                s_max = s_max + INPUT_STRING_BASE_SIZE;
+                        }
+                }
+        }
+
+        stdin_check_fgetc_err_and_eof(eof_ok);
+
+        return s;
+}
+
+void
+read_strings_from_stdin(char *s1, char *s2)
+{
+        /* Read the first string from stdin */
+        char *X = read_sequence_from_stdin(0);
+
+        /* Read out the rest of the whitespace */
+        int c = (int)' ';
+        while (isspace(c)) {
+                c = fgetc(stdin);
+        }
+
+        stdin_check_fgetc_err_and_eof(0);
+
+        /* Put the last character back, as it's part of the next sequence */
+        int res = ungetc(c, stdin);
+        if (EOF == res) {
+                perror("ungetc failed");
+                exit(1);
+        }
+
+        /* Read the second string from stdin */
+        char *Y = read_sequence_from_stdin(1);
+
+        /* Place X and Y in the global computation instance */
+        s1 = X;
+        s2 = Y;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -504,19 +586,21 @@ main(int argc, char **argv)
         }
 
         // Parse operands
-        if ((optind + 5) > argc) {
+        if ((optind + 3) > argc) {
                 usage();
         } else {
-                s1 = argv[optind + 0];
-                s2 = argv[optind + 1];
+                read_strings_from_stdin(s1, s2);
+                /* s1 = argv[optind + 0]; */
+                /* s2 = argv[optind + 1]; */
 
                 // Scoring values
-                m = atoi(argv[optind + 2]);
-                k = atoi(argv[optind + 3]);
-                g = atoi(argv[optind + 4]);
+                m = atoi(argv[optind + 0]);
+                k = atoi(argv[optind + 1]);
+                g = atoi(argv[optind + 2]);
         }
 
         // Solve
+        fprintf(stderr, "\nstarting needleman_wunsch()\n");
         needleman_wunsch(s1, s2, m, k, g);
 
         return 0;
