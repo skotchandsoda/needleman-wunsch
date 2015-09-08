@@ -140,6 +140,7 @@ walk_table_recursively(char *s1,
         // Recursive case: We're not at the top-left corner of the table.
         //                 Make a recursive call for each direction bit set.
         else {
+                fprintf(stderr, "@ (%d,%d)\n", i, j);
                 if (T->cells[i][j].diag == 1) {
                         if (qflag != 1) {
                                 X[n] = s1[i-1];
@@ -196,6 +197,8 @@ mark_optimal_path_in_table(char *s1, char *s2, table_t *T)
                         exit(1);
                 }
         }
+
+        fprintf(stderr, "allocated temp printing strings X&Y\n");
 
         // We move through the table starting at the bottom-right corner
         int i = T->M - 1;  // position (x direction)
@@ -315,6 +318,7 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
 void
 process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int g)
 {
+        fprintf(stderr, "processing col %d\n", col);
         // Compute the score for each cell in the column
         for (int row = 1; row < T->N; row++) {
                 // Compute the cell's score
@@ -341,6 +345,8 @@ process_column_set(void *start_col)
                                comp->gap_penalty);
                 current_col = current_col + num_threads;
         }
+
+        fprintf(stderr, "done processing col-set starting at col %d\n", *((int *)start_col));
 
         return NULL;
 }
@@ -372,6 +378,8 @@ compute_table_scores()
                 }
         }
 
+        fprintf(stderr, "spawned threads\n");
+
         // Join the worker threads
         for (int i = 0; i < num_threads; i++) {
                 int res = pthread_join(worker_threads[i].thread_id, NULL);
@@ -380,8 +388,11 @@ compute_table_scores()
                 }
         }
 
+        fprintf(stderr, "joined threads\n");
+
         // Clean up
         free(worker_threads);
+        fprintf(stderr, "freed threads\n");
 }
 
 /* Allocate and initialize a Needleman-Wunsch alignment computation */
@@ -389,6 +400,7 @@ computation_t *
 init_computation(char *s1, char *s2, int m, int k, int g)
 {
         // Allocate for alignment computation instance
+        fprintf(stderr, "allocating for computation\n");
         computation_t *C = (computation_t *)malloc(sizeof(computation_t));
         if (NULL == C) {
                 perror("malloc failed");
@@ -398,12 +410,17 @@ init_computation(char *s1, char *s2, int m, int k, int g)
         // We use an MxN table (M cols, N rows).  We add 1 to each of
         // the input strings' lengths to make room for the base
         // row/column (see init_table)
+        fprintf(stderr, "beginning table dimension computation\n");
         int M = strlen(s1) + 1;
+        fprintf(stderr, "strlen(s1)==%d\n", M);
         int N = strlen(s2) + 1;
+        fprintf(stderr, "strlens computed\n");
 
         // Create and initialize the scores table
         C->scores_table = alloc_table(M, N);
+        fprintf(stderr, "table allocated\n");
         init_table(C->scores_table, g, (num_threads > 1));
+        fprintf(stderr, "table initialized\n");
 
         C->top_string = s1;
         C->side_string = s2;
@@ -424,6 +441,7 @@ free_computation(computation_t *C)
 void
 needleman_wunsch(char *s1, char *s2, int m, int k, int g)
 {
+//        fprintf(stderr, "\nstarting needleman_wunsch()\n");
         // Initialize computation
         computation_t *C = init_computation(s1, s2, m, k, g);
 
@@ -431,6 +449,7 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int g)
         comp = C;
 
         // Fill out table, i.e. compute the optimal score
+//        fprintf(stderr, "beginning compute_table_scores()\n");
         compute_table_scores();
 
         // Walk the table.  Mark the optimal path if tflag is set, print
@@ -501,11 +520,13 @@ read_sequence_from_stdin(int eof_ok)
 
         stdin_check_fgetc_err_and_eof(eof_ok);
 
+        s[i+1] = '\0';
+
         return s;
 }
 
 void
-read_strings_from_stdin(char *s1, char *s2)
+read_strings_from_stdin(char **s1, char **s2)
 {
         /* Read the first string from stdin */
         char *X = read_sequence_from_stdin(0);
@@ -529,8 +550,9 @@ read_strings_from_stdin(char *s1, char *s2)
         char *Y = read_sequence_from_stdin(1);
 
         /* Place X and Y in the global computation instance */
-        s1 = X;
-        s2 = Y;
+//        fprintf(stderr, "%s %s\n", X, Y);
+        *s1 = X;
+        *s2 = Y;
 }
 
 int
@@ -589,7 +611,8 @@ main(int argc, char **argv)
         if ((optind + 3) > argc) {
                 usage();
         } else {
-                read_strings_from_stdin(s1, s2);
+                read_strings_from_stdin(&s1, &s2);
+                //fprintf(stderr, "%s %s\n", s1, s2);
                 /* s1 = argv[optind + 0]; */
                 /* s2 = argv[optind + 1]; */
 
@@ -600,7 +623,6 @@ main(int argc, char **argv)
         }
 
         // Solve
-        fprintf(stderr, "\nstarting needleman_wunsch()\n");
         needleman_wunsch(s1, s2, m, k, g);
 
         return 0;
