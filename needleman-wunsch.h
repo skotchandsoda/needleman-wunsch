@@ -5,6 +5,8 @@
 
 // needleman-wunsch.h - prototypes and global flags for needleman-wunsch.c
 
+#include <pthread.h>
+
 #include "table.h"
 
 #ifndef NEEDLEMAN_WUNSCH_H
@@ -50,6 +52,8 @@ typedef struct computation {
         int mismatch_penalty;
         int gap_penalty;
         table_t *scores_table;
+        unsigned int solution_count;
+        pthread_rwlock_t solution_count_rwlock;
 } computation_t;
 
 /* Global computation instance for this process */

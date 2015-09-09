@@ -109,73 +109,95 @@ print_aligned_strings_and_counts(char *X, char *Y, int n, int print_counts)
         }
 }
 
-int
-walk_table_recursively(char *s1,
-                       char *s2,
-                       table_t *T,
+void
+inc_solution_count(computation_t *C)
+{
+        if (num_threads > 1) {
+                pthread_rwlock_wrlock(&C->solution_count_rwlock);
+        }
+
+        C->solution_count = C->solution_count + 1;
+
+        if (num_threads > 1) {
+                pthread_rwlock_unlock(&C->solution_count_rwlock);
+        }
+}
+
+unsigned int
+get_solution_count(computation_t *C)
+{
+        if (num_threads > 1) {
+                pthread_rwlock_rdlock(&C->solution_count_rwlock);
+        }
+
+        unsigned int count = C->solution_count;
+
+        if (num_threads > 1) {
+                pthread_rwlock_unlock(&C->solution_count_rwlock);
+        }
+
+        return count;
+}
+
+
+void
+walk_table_recursively(computation_t *C,
                        char *X,
                        char *Y,
                        int i,
                        int j,
-                       int n,
-                       int soln_count)
+                       int n)
 {
         // Mark the cell so that (later) the table printing
         // routine can mark the cell as part of an optimal path
         if (tflag == 1) {
-                T->cells[i][j].in_optimal_path = 1;
+                C->scores_table->cells[i][j].in_optimal_path = 1;
         }
 
         // Base case: We've reached the top-left corner of the table, i.e.
         //            the current cell_t has no direction bits set.
-        if ((T->cells[i][j].diag || T->cells[i][j].left || T->cells[i][j].up) == 0) {
+        if ((C->scores_table->cells[i][j].diag ||
+             C->scores_table->cells[i][j].left ||
+             C->scores_table->cells[i][j].up) == 0) {
                 if (qflag != 1) {
-                        if (soln_count > 0) {
+                        if (get_solution_count(C) > 0) {
                                 printf("\n");
                         }
                         print_aligned_strings_and_counts(X, Y, n-1, lflag);
                 }
-                soln_count = soln_count + 1;
+                inc_solution_count(C);
         }
         // Recursive case: We're not at the top-left corner of the table.
         //                 Make a recursive call for each direction bit set.
         else {
                 fprintf(stderr, "@ (%d,%d)\n", i, j);
-                if (T->cells[i][j].diag == 1) {
+                if (C->scores_table->cells[i][j].diag == 1) {
                         if (qflag != 1) {
-                                X[n] = s1[i-1];
-                                Y[n] = s2[j-1];
+                                X[n] = C->top_string[i-1];
+                                Y[n] = C->side_string[j-1];
                         }
-                        soln_count = walk_table_recursively(s1, s2, T,
-                                                            X, Y, i-1, j-1,
-                                                            n+1, soln_count);
+                        walk_table_recursively(C, X, Y, i-1, j-1, n+1);
                 }
-                if (T->cells[i][j].left == 1) {
+                if (C->scores_table->cells[i][j].left == 1) {
                         if (qflag != 1) {
-                                X[n] = s1[i-1];
+                                X[n] = C->top_string[i-1];
                                 Y[n] = '-';
                         }
-                        soln_count = walk_table_recursively(s1, s2, T,
-                                                            X, Y, i-1, j,
-                                                            n+1, soln_count);
+                        walk_table_recursively(C, X, Y, i-1, j, n+1);
                 }
-                if (T->cells[i][j].up == 1) {
+                if (C->scores_table->cells[i][j].up == 1) {
                         if (qflag != 1) {
                                 X[n] = '-';
-                                Y[n] = s2[j-1];
+                                Y[n] = C->side_string[j-1];
                         }
-                        soln_count = walk_table_recursively(s1, s2, T,
-                                                            X, Y, i, j-1,
-                                                            n+1, soln_count);
+                        walk_table_recursively(C, X, Y, i, j-1, n+1);
                 }
         }
-
-        return soln_count;
 }
 
 
 void
-mark_optimal_path_in_table(char *s1, char *s2, table_t *T)
+mark_optimal_path_in_table(computation_t *C)
 {
         int max_aligned_strlen;
         char *X;
@@ -185,7 +207,7 @@ mark_optimal_path_in_table(char *s1, char *s2, table_t *T)
         // optimally aligned strings.  In the worst case they will be
         // M+N characters long.
         if (qflag != 1) {
-                max_aligned_strlen = T->M + T->N;
+                max_aligned_strlen = C->scores_table->M + C->scores_table->N;
                 X = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
                 if (X == NULL) {
                         perror("malloc failed");
@@ -201,14 +223,14 @@ mark_optimal_path_in_table(char *s1, char *s2, table_t *T)
         fprintf(stderr, "allocated temp printing strings X&Y\n");
 
         // We move through the table starting at the bottom-right corner
-        int i = T->M - 1;  // position (x direction)
-        int j = T->N - 1;  // position (y direction)
-        int n = 0;         // character count
+        int i = C->scores_table->M - 1;  // position (x direction)
+        int j = C->scores_table->N - 1;  // position (y direction)
+        int n = 0;                       // character count
 
         // Walk the table starting at the bottom-right corner recursively,
         // marking cells in the optimal path and counting the total possible
         // optimal solutions (alignments)
-        int soln_count = walk_table_recursively(s1, s2, T, X, Y, i, j, n, 0);
+        walk_table_recursively(C, X, Y, i, j, n);
 
         // Clean up buffers if we allocated for them
         if (qflag != 1) {
@@ -221,9 +243,11 @@ mark_optimal_path_in_table(char *s1, char *s2, table_t *T)
                 if (qflag != 1) {
                         printf("\n");
                 }
+                unsigned int soln_count = get_solution_count(C);
                 printf("%d optimal alignment%s\n",
                        soln_count, (soln_count > 1 ? "s" : ""));
-                printf("Optimal score is %-d\n", T->cells[i][j].score);
+                printf("Optimal score is %-d\n",
+                       C->scores_table->cells[i][j].score);
         }
 }
 
@@ -422,11 +446,22 @@ init_computation(char *s1, char *s2, int m, int k, int g)
         init_table(C->scores_table, g, (num_threads > 1));
         fprintf(stderr, "table initialized\n");
 
+        /* Alignment strings */
         C->top_string = s1;
         C->side_string = s2;
+
+        /* Alignment scores/penalties */
         C->match_score = m;
         C->mismatch_penalty = k;
         C->gap_penalty = g;
+
+        /* Total number of solutions founds */
+        C->solution_count = 0;
+        int res = pthread_rwlock_init(&C->solution_count_rwlock, NULL);
+        if (0 != res) {
+                perror("pthread_rwlock_init failed");
+                exit(1);
+        }
 
         return C;
 }
@@ -435,6 +470,12 @@ void
 free_computation(computation_t *C)
 {
         free_table(C->scores_table, (num_threads > 1));
+        int res = pthread_rwlock_destroy(&C->solution_count_rwlock);
+        if (0 != res) {
+                perror("pthread_rwlock_destroy failed");
+                exit(1);
+        }
+
         free(C);
 }
 
@@ -456,8 +497,7 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int g)
         // the results of the algorithm's run if sflag is set, and print
         // the aligned strings if qflag is not set
         if (qflag != 1 || sflag == 1 || tflag == 1) {
-                mark_optimal_path_in_table(C->top_string, C->side_string,
-                                           C->scores_table);
+                mark_optimal_path_in_table(C);
         }
 
         // Print table if tflag was set
@@ -624,6 +664,10 @@ main(int argc, char **argv)
 
         // Solve
         needleman_wunsch(s1, s2, m, k, g);
+
+        // Clean up
+        free(s1);
+        free(s2);
 
         return 0;
 }
