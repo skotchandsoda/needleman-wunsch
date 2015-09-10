@@ -139,6 +139,119 @@ get_solution_count(computation_t *C)
         return count;
 }
 
+/* Do the walk iteratively because we'll overrun the stack with new frames
+   on a sufficiently large input.  Yes, it is ugly, but it is necessary
+   if we want to handle arbitrarily large inputs. */
+void
+walk_table(computation_t *C, char *X, char *Y)
+{
+        // We move through the table starting at the bottom-right corner
+        table_t *T = C->scores_table;
+        int i = T->M - 1;  // position (x direction)
+        int j = T->N - 1;  // position (y direction)
+        int n = 0;         // character count
+
+        int rightmost_col = i;
+        int bottommost_row = j;
+
+        fprintf(stderr, "starting walk\n");
+        while (!(i == rightmost_col &&
+                 j == bottommost_row &&
+                 1 == T->cells[i][j].up_done &&
+                 1 == T->cells[i][j].diag_done &&
+                 1 == T->cells[i][j].left_done)) {
+//                fprintf(stderr, "@ (%d,%d)\n", i, j);
+
+                // We've visited the cell, so mark it as part of the
+                // optimal path
+                if (tflag == 1) {
+                        T->cells[i][j].in_optimal_path = 1;
+                }
+
+                // Special Case: We've reached the top-left corner of the table.
+                //               Print the current solution.
+                if (i == 0 && j == 0) {
+                        if (qflag != 1) {
+                                if (get_solution_count(C) > 0) {
+                                        printf("\n");
+                                }
+                                print_aligned_strings_and_counts(X, Y, n-1, lflag);
+                        }
+                        inc_solution_count(C);
+                }
+
+                // Base Case: Done in current cell.  Return to source cell.
+                if (T->cells[i][j].up_done &&
+                    T->cells[i][j].diag_done &&
+                    T->cells[i][j].left_done) {
+                        /* Mark all possible paths as "not done" for
+                           future visits */
+                        T->cells[i][j].up_done = (T->cells[i][j].up ? 0 : 1);
+                        T->cells[i][j].diag_done = (T->cells[i][j].diag ? 0 : 1);
+                        T->cells[i][j].left_done = (T->cells[i][j].left ? 0 : 1);
+
+                        /* Change i and j so we are "back in the source
+                           cell."  Mark the source cell's relevant
+                           direction "done" */
+                        switch(T->cells[i][j].src_direction) {
+                        case up:
+                                j = j + 1;
+                                T->cells[i][j].up_done = 1;
+                                break;
+                        case left:
+                                i = i + 1;
+                                T->cells[i][j].left_done = 1;
+                                break;
+                        case diag:
+                                i = i + 1;
+                                j = j + 1;
+                                T->cells[i][j].diag_done = 1;
+                                break;
+                        default:
+                                fprintf(stderr, "the impossible has happened; " \
+                                        "giving up\n");
+                                exit(1);
+                        }
+                        /* Decrement n so we can write in another
+                           equivalent solution in a later pass */
+                        n = n - 1;
+                }
+                // Recursive Case: Not done in current cell.  Do stuff in
+                //                 adjacent (up/diag/left) cells.
+                else {
+                        if (1 == T->cells[i][j].diag &&
+                            0 == T->cells[i][j].diag_done) {
+                                if (qflag != 1) {
+                                        X[n] = C->top_string[i-1];
+                                        Y[n] = C->side_string[j-1];
+                                }
+                                i = i-1;
+                                j = j-1;
+                                T->cells[i][j].src_direction = diag;
+                                n = n+1;
+                        } else if (1 == T->cells[i][j].left &&
+                                   0 == T->cells[i][j].left_done) {
+                                if (qflag != 1) {
+                                        X[n] = C->top_string[i-1];
+                                        Y[n] = '-';
+                                }
+                                i = i-1;
+                                T->cells[i][j].src_direction = left;
+                                n = n+1;
+                        } else if (1 == C->scores_table->cells[i][j].up &&
+                                   0 == T->cells[i][j].up_done) {
+                                if (qflag != 1) {
+                                        X[n] = '-';
+                                        Y[n] = C->side_string[j-1];
+                                }
+                                j = j-1;
+                                T->cells[i][j].src_direction = up;
+                                n = n+1;
+                        }
+                }
+        }
+        fprintf(stderr, "done walk\n");
+}
 
 void
 walk_table_recursively(computation_t *C,
@@ -230,7 +343,8 @@ mark_optimal_path_in_table(computation_t *C)
         // Walk the table starting at the bottom-right corner recursively,
         // marking cells in the optimal path and counting the total possible
         // optimal solutions (alignments)
-        walk_table_recursively(C, X, Y, i, j, n);
+//        walk_table_recursively(C, X, Y, i, j, n);
+        walk_table(C, X, Y);
 
         // Clean up buffers if we allocated for them
         if (qflag != 1) {
@@ -320,22 +434,26 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
          * END CRITICAL SECTIONS
          */
 
-        /* while (left_cell->processed == 0); */
-        /* int left_score = left_cell->score - g; */
-        /* target_cell->score = max3(up_score, left_score, diag_score); */
-        /* target_cell->processed = 1; */
-
         // Mark the optimal paths.  Provided that a path's
         // score is equal to the target cell's score, i.e. the maximum
         // of the three candidate scores, it is an optimal path.
         if (target_cell->score == diag_score) {
                 target_cell->diag = 1;
+                target_cell->diag_done = 0;
+        } else {
+                target_cell->diag_done = 1;
         }
         if (target_cell->score == up_score) {
                 target_cell->up = 1;
+                target_cell->up_done = 0;
+        } else {
+                target_cell->up_done = 1;
         }
         if (target_cell->score == left_score) {
                 target_cell->left = 1;
+                target_cell->left_done = 0;
+        } else {
+                target_cell->left_done = 1;
         }
 }
 

@@ -10,12 +10,19 @@
 #ifndef TABLE_H
 #define TABLE_H
 
+// arrow_t, a type describing directions in the scores table
+typedef enum {left, up, diag} arrow_t;
+
 // cell_t, a type describing a cell in the table
 typedef struct cell {
         int score;
         int diag;
         int left;
         int up;
+        int diag_done;
+        int left_done;
+        int up_done;
+        arrow_t src_direction;
         int match;
         int in_optimal_path;
         int processed;

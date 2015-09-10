@@ -18,7 +18,7 @@
 #define UNICODE_NORTH_WEST_ARROW "\u2196"
 
 // A zeroed cell_t for when we first allocate the table
-const cell_t DEFAULT_CELL = {0, 0, 0, 0, 0, 0, 0};
+//const cell_t DEFAULT_CELL = {0, 0, 0, 0, 0, 0, 0};
 
 table_t *
 alloc_table(int M, int N)
@@ -43,15 +43,15 @@ alloc_table(int M, int N)
         // Allocate subarrays for T->cells.  Note that we explicitly zero
         // the cell_t arrays with the assignment to DEFAULT_CELL
         for (int i = 0; i < T->M; i++) {
-                T->cells[i] = (cell_t *)malloc(T->N * sizeof(cell_t));
+                T->cells[i] = (cell_t *)calloc(T->N, sizeof(cell_t));
                 if (T->cells[i] == NULL) {
                         perror("malloc failed");
                         exit(1);
-                } else {
-                        for (int j = 0; j < T->N; j++) {
-                                T->cells[i][j] = DEFAULT_CELL;
-                        }
-                }
+                } /* else { */
+                /*         for (int j = 0; j < T->N; j++) { */
+                /*                 T->cells[i][j] = DEFAULT_CELL; */
+                /*         } */
+                /* } */
         }
 
         return T;
@@ -101,12 +101,16 @@ init_table(table_t *T, int d, int multiple_threads)
         // 0,0 is 0 and has no direction
         T->cells[0][0].score = 0;
         T->cells[0][0].processed = 1;
-
+        T->cells[0][0].up_done = 1;
+        T->cells[0][0].left_done = 1;
+        T->cells[0][0].diag_done = 1;
 
         // Rest of top row has score (-i)*d and LEFT direction
         for (int i = 1; i < T->M; i++) {
                 T->cells[i][0].score = (-i) * d;
                 T->cells[i][0].left = 1;
+                T->cells[i][0].up_done = 1;
+                T->cells[i][0].diag_done = 1;
                 T->cells[i][0].processed = 1;
         }
 
@@ -114,11 +118,12 @@ init_table(table_t *T, int d, int multiple_threads)
         for (int j = 1; j < T->N; j++) {
                 T->cells[0][j].score = (-j) * d;
                 T->cells[0][j].up = 1;
+                T->cells[0][j].left_done = 1;
+                T->cells[0][j].diag_done = 1;
                 T->cells[0][j].processed = 1;
         }
 }
 
-typedef enum {left, up, diag} arrow_t;
 
 static void
 print_arrow(arrow_t a, int optimal_path, int col_width, int col, int row, char *s1, char *s2, int unicode)
