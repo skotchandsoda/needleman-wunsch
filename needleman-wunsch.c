@@ -302,16 +302,6 @@ mark_optimal_path_in_table(computation_t *C)
         // Clean up buffers
         free(X);
         free(Y);
-
-        // Print details about the algorithm's run, i.e. number of
-        // optimal alignments and maximum possible score
-        if (sflag == 1) {
-                unsigned int soln_count = get_solution_count(C);
-                printf("%d optimal alignment%s\n",
-                       soln_count, (soln_count > 1 ? "s" : ""));
-                printf("Optimal score is %-d\n",
-                       C->scores_table->cells[i][j].score);
-        }
 }
 
 static int
@@ -437,8 +427,6 @@ process_column_set(void *start_col)
                 current_col = current_col + num_threads;
         }
 
-//        fprintf(stderr, "done processing col-set starting at col %d\n", *((int *)start_col));
-
         return NULL;
 }
 
@@ -547,31 +535,47 @@ free_computation(computation_t *C)
         free(C);
 }
 
+/* Print details about the algorithm's run, i.e. number of optimal
+   alignments and maximum possible score */
+void
+print_summary(computation_t *C)
+{
+        unsigned int soln_count = get_solution_count(C);
+        printf("%d optimal alignment%s\n",
+               soln_count, (soln_count > 1 ? "s" : ""));
+        printf("Optimal score is %-d\n",
+               C->scores_table->cells[i][j].score);
+}
+
 void
 needleman_wunsch(char *s1, char *s2, int m, int k, int g)
 {
-//        fprintf(stderr, "\nstarting needleman_wunsch()\n");
-        // Initialize computation
+        /* Initialize computation */
         computation_t *C = init_computation(s1, s2, m, k, g);
 
-        // Set global computation pointer
+        /* Set global computation pointer */
         comp = C;
 
-        // Fill out table, i.e. compute the optimal score
-//        fprintf(stderr, "beginning compute_table_scores()\n");
+        /* Fill out table, i.e. compute the optimal score */
         compute_table_scores();
 
-        // Walk the table.  Mark the optimal path if tflag is set, print
-        // the results of the algorithm's run if sflag is set, and print
-        // the aligned strings if qflag is not set
-        if (qflag != 1 || sflag == 1 || tflag == 1) {
+        /* Walk the table.  Mark the optimal path if tflag is set, print
+           the results of the algorithm's run if sflag is set, print the
+           aligned strings if qflag is not set, and print summaries of
+           each alignment is lflag is set */
+        if (qflag != 1 || lflag == 1 || sflag == 1 || tflag == 1) {
                 mark_optimal_path_in_table(C);
         }
 
-        // Print table if tflag was set
+        /* Print summary if sflag is set */
+        if (sflag == 1) {
+                print_summary(C);
+        }
+
+        /* Print table if tflag is set */
         if (tflag == 1) {
                 // extra newline to separate the output sections
-                if (qflag != 1 || sflag == 1) {
+                if (sflag == 1 || qflag != 1 || lflag == 1) {
                         printf("\n");
                 }
                 print_table(C->scores_table, C->top_string, C->side_string, uflag);
@@ -658,7 +662,6 @@ read_strings_from_stdin(char **s1, char **s2)
         char *Y = read_sequence_from_stdin(1);
 
         /* Place X and Y in the global computation instance */
-//        fprintf(stderr, "%s %s\n", X, Y);
         *s1 = X;
         *s2 = Y;
 }
@@ -720,9 +723,6 @@ main(int argc, char **argv)
                 usage();
         } else {
                 read_strings_from_stdin(&s1, &s2);
-                //fprintf(stderr, "%s %s\n", s1, s2);
-                /* s1 = argv[optind + 0]; */
-                /* s2 = argv[optind + 1]; */
 
                 // Scoring values
                 m = atoi(argv[optind + 0]);
