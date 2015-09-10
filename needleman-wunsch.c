@@ -1,10 +1,10 @@
-// Copyright (c) 2015, Scott Cheloha
-// All rights reserved.
+/* Copyright (c) 2015, Scott Cheloha
+   All rights reserved.
 
-// See LICENSE for full copyright information.
+   See LICENSE for full copyright information. */
 
-// needleman-wunsch - align two strings with the Needleman-Wunsch algorithm
-//                    (see http://en.wikipedia.org/Needleman–Wunsch_algorithm)
+/* needleman-wunsch - align two strings with the Needleman-Wunsch algorithm
+                      (see http://en.wikipedia.org/Needleman–Wunsch_algorithm) */
 
 #include <ctype.h>
 #include <math.h>
@@ -581,7 +581,7 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int g)
                 print_table(C->scores_table, C->top_string, C->side_string, uflag);
         }
 
-        // Clean up
+        /* Clean up */
         free_computation(C);
 }
 
@@ -610,6 +610,8 @@ read_sequence_from_stdin(int eof_ok)
         int i = 0;
         int s_max = INPUT_STRING_BASE_SIZE;
         char *s = (char *)malloc(s_max * sizeof(char));
+
+        /* Read characters from stdin into string s until we hit whitespace */
         while (EOF != (c = fgetc(stdin))) {
                 if (isspace(c)) {
                         break;
@@ -630,8 +632,10 @@ read_sequence_from_stdin(int eof_ok)
                 }
         }
 
+        /* Make sure we didn't get an error or find EOF prematurely */
         stdin_check_fgetc_err_and_eof(eof_ok);
 
+        /* Must null-terminate the input string by hand */
         s[i+1] = '\0';
 
         return s;
@@ -669,11 +673,11 @@ read_strings_from_stdin(char **s1, char **s2)
 int
 main(int argc, char **argv)
 {
-        // Strings to align
+        /* Strings to align */
         char *s1;
         char *s2;
 
-        // Scoring values
+        /* Scoring values */
         int m, k, g;
 
         // Parse option flags
@@ -718,22 +722,22 @@ main(int argc, char **argv)
                 }
         }
 
-        // Parse operands
+        /* Parse operands */
         if ((optind + 3) > argc) {
                 usage();
         } else {
                 read_strings_from_stdin(&s1, &s2);
 
-                // Scoring values
+                /* Scoring values */
                 m = atoi(argv[optind + 0]);
                 k = atoi(argv[optind + 1]);
                 g = atoi(argv[optind + 2]);
         }
 
-        // Solve
+        /* Solve */
         needleman_wunsch(s1, s2, m, k, g);
 
-        // Clean up
+        /* Clean up */
         free(s1);
         free(s2);
 
