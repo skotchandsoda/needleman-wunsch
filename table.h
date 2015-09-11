@@ -5,10 +5,10 @@
 
 // table.h - prototypes for table.c
 
-#include <pthread.h>
+#ifndef __TABLE_H__
+#define __TABLE_H__
 
-#ifndef TABLE_H
-#define TABLE_H
+#include <pthread.h>
 
 // arrow_t, a type describing directions in the scores table
 typedef enum {left, up, diag} arrow_t;
@@ -50,4 +50,4 @@ void init_table(table_t *T, int d, int multiple_threads);
 // Print the score table
 void print_table(table_t *T, char *s1, char *s2, int unicode);
 
-#endif /* TABLE_H */
+#endif /* __TABLE_H__ */

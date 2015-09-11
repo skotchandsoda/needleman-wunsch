@@ -6,8 +6,8 @@
 // format.h -- ANSI color escape sequences for more colorful printing.
 //             Prototypes for routines to set/unset formatting options.
 
-#ifndef FORMAT_H
-#define FORMAT_H
+#ifndef __FORMAT_H__
+#define __FORMAT_H__
 
 #define ANSI_CSI_OPEN   "\x1b[" // ASCII 27 is the ESC to start CSI formatting
 #define ANSI_SGI_CLOSE  "m"     // 'm' ends SGI formatting
@@ -91,4 +91,4 @@ void set_fmt(fmt_t f);
 // Reset the output fomatting
 void reset_fmt();
 
-#endif /* FORMAT_H */
+#endif /* __FORMAT_H__ */

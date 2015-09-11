@@ -5,12 +5,12 @@
 
 // needleman-wunsch.h - prototypes and global flags for needleman-wunsch.c
 
+#ifndef __NEEDLEMAN_WUNSCH_H__
+#define __NEEDLEMAN_WUNSCH_H__
+
 #include <pthread.h>
 
 #include "table.h"
-
-#ifndef NEEDLEMAN_WUNSCH_H
-#define NEEDLEMAN_WUNSCH_H
 
 /*
  * Global flags affecting program logic
@@ -59,4 +59,4 @@ typedef struct computation {
 /* Global computation instance for this process */
 computation_t *comp;
 
-#endif /* NEEDLEMAN_WUNSCH_H */
+#endif /* __NEEDLEMAN_WUNSCH_H__ */
