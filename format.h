@@ -32,7 +32,7 @@
 
 /* The AIXTERM extensions are supported by some terminals.  If they were
    supported by all, we could consistently have bright colors without bold
-   text, but alas, the world is cruel. */
+   text, but alas: the world is cruel. */
 #define AIX_FG_RED      "91"
 #define AIX_FG_GREEN    "92"
 #define AIX_FG_YELLOW   "93"
