@@ -18,9 +18,6 @@
 #define UNICODE_UPWARDS_ARROW    "\u2191"
 #define UNICODE_NORTH_WEST_ARROW "\u2196"
 
-// A zeroed cell_t for when we first allocate the table
-//const cell_t DEFAULT_CELL = {0, 0, 0, 0, 0, 0, 0};
-
 table_t *
 alloc_table(int M, int N)
 {
@@ -73,7 +70,7 @@ free_table(table_t *T, int multiple_threads)
 }
 
 void
-init_table(table_t *T, int d, int multiple_threads)
+init_table(table_t *T, int d, int multiple_threads, int print_table)
 {
         /* Initialize all mutex and condition variable objects */
         int res;
@@ -88,8 +85,13 @@ init_table(table_t *T, int d, int multiple_threads)
                 }
         }
 
+        /* If we're printing the table, initialize the largest value */
+        if (print_table == 1) {
+                T->greatest_abs_val = 0;
+        }
+
         // Initialize the table
-        // 0,0 is 0 and has no direction
+        // 0,0 has score 0 and has no optimal direction
         T->cells[0][0].score = 0;
         T->cells[0][0].processed = 1;
         T->cells[0][0].up_done = 1;
