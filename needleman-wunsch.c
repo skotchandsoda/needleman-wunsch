@@ -14,6 +14,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "dbg.h"
 #include "format.h"
 #include "needleman-wunsch.h"
 #include "table.h"
@@ -22,8 +23,11 @@
 
 #define INPUT_STRING_BASE_SIZE 4096
 
-/* Global flags defined in format.h */
+/* Global flags declared in format.h */
 extern int cflag;
+
+/* Program name declared in dbg.h */
+extern char *prog;
 
 void
 usage()
@@ -44,9 +48,9 @@ options:\n\
   -l   list match, mismatch, and gap counts after each alignment pair\n\
   -p num_threads\n\
        parallelize the computation with 'num_threads' threads (must be >1)\n\
-  -q   be quiet and don't print the alignmened strings (cancels the '-l' flag)\n\
+  -q   be quiet and don't print the aligned strings (cancels the '-l' flag)\n\
   -s   summarize the algorithm's run\n\
-  -t   print the scores table; probably only useful for shorter input strings\n\
+  -t   print the scores table; only useful for shorter input strings\n\
   -u   use unicode arrows when printing the scores table\n"
 );
         exit(1);
@@ -63,8 +67,9 @@ print_aligned_string_char(char *s1, char *s2, int n)
         } else if (s1[n] != s2[n]) {
                 set_fmt(mismatch_char_fmt);
         } else {
-                fprintf(stderr, "the impossible has happened; giving up\n");
-                exit(1);
+                unreachable();
+                /* fprintf(stderr, "the impossible has happened; giving up\n"); */
+                /* exit(1); */
         }
 
         /* Print the character */
@@ -165,7 +170,7 @@ walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
         int rightmost_col = i;
         int bottommost_row = j;
 
-        fprintf(stderr, "starting walk\n");
+        debug("Starting scores table walk.");
         while (!(i == rightmost_col &&
                  j == bottommost_row &&
                  1 == T->cells[i][j].up_done &&
@@ -182,7 +187,10 @@ walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
                 // Special Case: We've reached the top-left corner of the table.
                 //               Print the current solution.
                 if (i == 0 && j == 0) {
-                        print_aligned_strings_and_counts(X, Y, n-1, qflag, lflag);
+                        if (qflag != 1 || lflag == 1) {
+                                print_aligned_strings_and_counts(X, Y, n-1,
+                                                                 qflag, lflag);
+                        }
                         inc_solution_count(C);
                 }
 
@@ -214,9 +222,7 @@ walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
                                 T->cells[i][j].diag_done = 1;
                                 break;
                         default:
-                                fprintf(stderr, "the impossible has happened; " \
-                                        "giving up\n");
-                                exit(1);
+                                unreachable();
                         }
                         /* Decrement n so we can write in another
                            equivalent solution in a later pass */
@@ -249,7 +255,8 @@ walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
                         n = n+1;
                 }
         }
-        fprintf(stderr, "done walk\n");
+
+        debug("Finished scores table walk.");
 }
 
 struct walk_table_args {
@@ -288,7 +295,7 @@ mark_optimal_path_in_table(computation_t *C)
                 exit(1);
         }
 
-        fprintf(stderr, "allocated temp printing strings X&Y\n");
+        debug("Allocated temporary solution printing strings X and Y.");
 
         // We move through the table starting at the bottom-right corner
         int i = C->scores_table->M - 1;  // position (x direction)
@@ -373,9 +380,9 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
          * END CRITICAL SECTIONS
          */
 
-        // Mark the optimal paths.  Provided that a path's
-        // score is equal to the target cell's score, i.e. the maximum
-        // of the three candidate scores, it is an optimal path.
+        /* Mark the optimal paths.  Provided that a path's score is
+           equal to the target cell's score, i.e. the maximum of the
+           three candidate scores, it is an optimal path. */
         if (target_cell->score == diag_score) {
                 target_cell->diag = 1;
                 target_cell->diag_done = 0;
@@ -399,8 +406,7 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
 void
 process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int g)
 {
-//        fprintf(stderr, "processing col %d\n", col);
-        // Compute the score for each cell in the column
+        /* Compute the score for each cell in the column */
         for (int row = 1; row < T->N; row++) {
                 // Compute the cell's score
                 process_cell(T, col, row, s1, s2, m, k, g);
@@ -416,14 +422,21 @@ process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int g)
 }
 
 void *
-process_column_set(void *start_col)
+process_column_set(void *args)
 {
-        int current_col = *((int *)start_col);
-        while (current_col < comp->scores_table->M) {
-                process_column(comp->scores_table, current_col,
-                               comp->top_string, comp->side_string,
-                               comp->match_score, comp->mismatch_penalty,
-                               comp->gap_penalty);
+        /* Unpack arguments */
+        struct process_col_set_args *A = (struct process_col_set_args *)args;
+        int current_col = A->start_col;
+        computation_t *C = A->C;
+
+        /* Process all columns in the thread's column set */
+        while (current_col < C->scores_table->M) {
+                debug("Thread %d: Processing scores table column %d",
+                      A->start_col, current_col);
+                process_column(C->scores_table, current_col,
+                               C->top_string, C->side_string,
+                               C->match_score, C->mismatch_penalty,
+                               C->gap_penalty);
                 current_col = current_col + num_threads;
         }
 
@@ -431,76 +444,74 @@ process_column_set(void *start_col)
 }
 
 void
-compute_table_scores()
+compute_table_scores(computation_t *C)
 {
-        // If we're printing the table, initialize the largest value
+        /* If we're printing the table, initialize the largest value */
         if (tflag == 1) {
-                comp->scores_table->greatest_abs_val = 0;
+                C->scores_table->greatest_abs_val = 0;
         }
 
-        // Allocate storage for thread ids and starting columns
-        worker_threads = (worker_thread_t *)malloc(num_threads * sizeof(worker_thread_t));
-        if (NULL == worker_threads) {
-                fprintf(stderr, "malloc failed");
-                exit(1);
-        }
+        /* Allocate storage for thread ids and arguments to process_col_set */
+        worker_threads = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
+        check(NULL != worker_threads, "malloc failed");
+        struct process_col_set_args *args;
+        args = (struct process_col_set_args *)malloc(num_threads *
+                                                     sizeof(struct process_col_set_args));
+        check(NULL != args, "malloc failed");
 
-        // Spawn worker threads to process sets of columns
+        /* Spawn worker threads to process sets of columns */
+        debug("Spawning %d worker thread%s for scores table computation",
+              num_threads, (num_threads == 1 ? "" : "s"));
         for (int i = 0; i < num_threads; i++) {
-                worker_threads[i].start_col = i + 1;
-                int res = pthread_create(&worker_threads[i].thread_id, NULL,
+                /* Initialize thread-local arguments for processing a
+                   column set */
+                args[i].start_col = i + 1;
+                args[i].C = C;
+
+                /* Spawn the thread */
+                int res = pthread_create(&worker_threads[i], NULL,
                                          process_column_set,
-                                         &worker_threads[i].start_col);
-                if (0 != res) {
-                        perror("pthread_create failed");
-                        exit(1);
-                }
+                                         &args[i]);
+                check(0 == res, "pthread_create failed");
         }
 
-        fprintf(stderr, "spawned threads\n");
-
-        // Join the worker threads
+        int res;
         for (int i = 0; i < num_threads; i++) {
-                int res = pthread_join(worker_threads[i].thread_id, NULL);
-                if (0 != res) {
-                        perror("pthread_join failed");
-                }
+                res = pthread_join(worker_threads[i], NULL);
+                check(0 == res, "pthread_join failed");
+                debug("Joined thread %d", i+1);
         }
 
-        fprintf(stderr, "joined threads\n");
+        /* Join the worker threads */
+        debug("Joining %d worker thread%s", num_threads,
+              (num_threads == 1 ? "" : "s"));
 
-        // Clean up
+
         free(worker_threads);
-        fprintf(stderr, "freed threads\n");
 }
 
 /* Allocate and initialize a Needleman-Wunsch alignment computation */
 computation_t *
 init_computation(char *s1, char *s2, int m, int k, int g)
 {
-        // Allocate for alignment computation instance
-        fprintf(stderr, "allocating for computation\n");
+        /* Allocate for alignment computation instance */
+        debug("Allocating for computation");
         computation_t *C = (computation_t *)malloc(sizeof(computation_t));
-        if (NULL == C) {
-                perror("malloc failed");
-                exit(1);
-        }
+        check(NULL != C, "malloc failed");
 
-        // We use an MxN table (M cols, N rows).  We add 1 to each of
-        // the input strings' lengths to make room for the base
-        // row/column (see init_table)
-        fprintf(stderr, "beginning table dimension computation\n");
+        /* We use an MxN table (M cols, N rows).  We add 1 to each of
+           the input strings' lengths to make room for the base
+           row/column (see init_table()) */
         int M = strlen(s1) + 1;
-        fprintf(stderr, "strlen(s1)==%d\n", M);
+        debug("Top string is %d characters long.", M);
         int N = strlen(s2) + 1;
-        fprintf(stderr, "strlen(s2)==%d\n", N);
-        fprintf(stderr, "strlens computed\n");
+        debug("Side string is %d characters long.", N);
 
-        // Create and initialize the scores table
+        /* Create and initialize the scores table */
+        debug("Allocating scores table");
         C->scores_table = alloc_table(M, N);
-        fprintf(stderr, "table allocated\n");
+        debug("Initializing scores table");
         init_table(C->scores_table, g, (num_threads > 1));
-        fprintf(stderr, "table initialized\n");
 
         /* Alignment strings */
         C->top_string = s1;
@@ -514,10 +525,7 @@ init_computation(char *s1, char *s2, int m, int k, int g)
         /* Total number of solutions founds */
         C->solution_count = 0;
         int res = pthread_rwlock_init(&C->solution_count_rwlock, NULL);
-        if (0 != res) {
-                perror("pthread_rwlock_init failed");
-                exit(1);
-        }
+        check(0 == res, "pthread_rwlock_init failed");
 
         return C;
 }
@@ -527,11 +535,7 @@ free_computation(computation_t *C)
 {
         free_table(C->scores_table, (num_threads > 1));
         int res = pthread_rwlock_destroy(&C->solution_count_rwlock);
-        if (0 != res) {
-                perror("pthread_rwlock_destroy failed");
-                exit(1);
-        }
-
+        check(0 == res, "pthread_rwlock_destroy failed");
         free(C);
 }
 
@@ -544,7 +548,7 @@ print_summary(computation_t *C)
         printf("%d optimal alignment%s\n",
                soln_count, (soln_count > 1 ? "s" : ""));
         printf("Optimal score is %-d\n",
-               C->scores_table->cells[i][j].score);
+               C->scores_table->cells[C->scores_table->M-1][C->scores_table->N-1].score);
 }
 
 void
@@ -553,16 +557,12 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int g)
         /* Initialize computation */
         computation_t *C = init_computation(s1, s2, m, k, g);
 
-        /* Set global computation pointer */
-        comp = C;
-
         /* Fill out table, i.e. compute the optimal score */
-        compute_table_scores();
+        compute_table_scores(C);
 
         /* Walk the table.  Mark the optimal path if tflag is set, print
-           the results of the algorithm's run if sflag is set, print the
-           aligned strings if qflag is not set, and print summaries of
-           each alignment is lflag is set */
+           the aligned strings if qflag is NOT set, and list counts for
+           each alignment if lflag is set */
         if (qflag != 1 || lflag == 1 || sflag == 1 || tflag == 1) {
                 mark_optimal_path_in_table(C);
         }
@@ -575,7 +575,7 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int g)
         /* Print table if tflag is set */
         if (tflag == 1) {
                 // extra newline to separate the output sections
-                if (sflag == 1 || qflag != 1 || lflag == 1) {
+                if (qflag != 1 || sflag == 1 || lflag == 1) {
                         printf("\n");
                 }
                 print_table(C->scores_table, C->top_string, C->side_string, uflag);
@@ -589,17 +589,12 @@ void
 stdin_check_fgetc_err_and_eof(int eof_ok)
 {
         /* Verify we didn't get an error */
-        if (0 != ferror(stdin)) {
-                perror("fgetc failed");
-                exit(1);
-        }
+        check(0 == ferror(stdin), "fgetc failed");
 
         /* Verify we're not already at the end of stdin */
         if (1 != eof_ok) {
-                if (0 != feof(stdin)) {
-                        fprintf(stderr, "error: file ended too early\n");
-                        exit(1);
-                }
+                check(0 == feof(stdin),
+                      "got EOF too early when reading input strings");
         }
 }
 
@@ -623,19 +618,15 @@ read_sequence_from_stdin(int eof_ok)
                 /* If we're out of room, allocate more space */
                 if (s_max == i) {
                         s = realloc(s, s_max + INPUT_STRING_BASE_SIZE);
-                        if (NULL == s) {
-                                perror("realloc failed");
-                                exit(1);
-                        } else {
-                                s_max = s_max + INPUT_STRING_BASE_SIZE;
-                        }
+                        check(NULL != s, "realloc failed");
+                        s_max = s_max + INPUT_STRING_BASE_SIZE;
                 }
         }
 
         /* Make sure we didn't get an error or find EOF prematurely */
         stdin_check_fgetc_err_and_eof(eof_ok);
 
-        /* Must null-terminate the input string by hand */
+        /* Null-terminate the input string by hand */
         s[i+1] = '\0';
 
         return s;
@@ -657,10 +648,7 @@ read_strings_from_stdin(char **s1, char **s2)
 
         /* Put the last character back, as it's part of the next sequence */
         int res = ungetc(c, stdin);
-        if (EOF == res) {
-                perror("ungetc failed");
-                exit(1);
-        }
+        check(EOF != res, "ungetc failed");
 
         /* Read the second string from stdin */
         char *Y = read_sequence_from_stdin(1);
@@ -697,11 +685,9 @@ main(int argc, char **argv)
                         break;
                 case 'p':
                         num_threads = atoi(optarg);
-                        if (num_threads < 2) {
-                                fprintf(stderr, "Error: num_threads == %d; " \
-                                        "num_threads must be greater than 1\n",
-                                        num_threads);
-                        }
+                        check(num_threads > 1,
+                              "num-threads == %d; num-threads "         \
+                              "must be greater than 1", num_threads);
                         break;
                 case 'q':
                         qflag = 1;
@@ -721,6 +707,9 @@ main(int argc, char **argv)
                         break;
                 }
         }
+
+        /* Set program name */
+        set_prog_name(argv[0]);
 
         /* Parse operands */
         if ((optind + 3) > argc) {
