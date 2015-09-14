@@ -23,10 +23,10 @@
 
 #define INPUT_STRING_BASE_SIZE 4096
 
-/* Global flags declared in format.h */
+/* ANSI terminal output formatting flag (defined in format.h) */
 extern int cflag;
 
-/* Program name declared in dbg.h */
+/* Program name (defined in dbg.h) */
 extern char *prog;
 
 void
