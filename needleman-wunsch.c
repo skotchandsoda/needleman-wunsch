@@ -34,7 +34,7 @@ usage()
 {
         fprintf(stderr, "\
 usage: needleman-wunsch [-c][-h][-l]\n\
-           [-p num_threads][-q][-s][-t][-u] s1 s2 m k g\n\
+           [-p num-threads][-q][-s][-t][-u] m k g\n\
 Align two strings with the Needleman-Wunsch algorithm\n\
 operands:\n\
   s1   first string to align (the top string)\n\
@@ -46,9 +46,9 @@ options:\n\
   -c   color the output with ANSI escape sequences\n\
   -h   print this usage message\n\
   -l   list match, mismatch, and gap counts after each alignment pair\n\
-  -p num_threads\n\
+  -p num-threads\n\
        parallelize the computation with 'num_threads' threads (must be >1)\n\
-  -q   be quiet and don't print the aligned strings (cancels the '-l' flag)\n\
+  -q   be quiet and don't print the aligned strings\n\
   -s   summarize the algorithm's run\n\
   -t   print the scores table; only useful for shorter input strings\n\
   -u   use unicode arrows when printing the scores table\n"
