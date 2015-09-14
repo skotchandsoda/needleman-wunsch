@@ -1,11 +1,11 @@
-# Copyright (C) 2015, Scott Cheloha
+# Copyright (c) 2015, Scott Cheloha.
 # All rights reserved.
 
 # See LICENSE for full copyright information.
 
 PROG = needleman-wunsch
-SRC = needleman-wunsch.c table.c format.c
-INC = needleman-wunsch.h table.h format.h
+SRC = needleman-wunsch.c table.c format.c dbg.c
+INC = needleman-wunsch.h table.h format.h dbg.h
 OBJ = ${SRC:.c=.o}
 CFLAGS = -g -O2
 LIB = -lpthread
