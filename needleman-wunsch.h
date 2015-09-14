@@ -23,24 +23,6 @@ int tflag = 0;
 int uflag = 0;
 
 /*
- * Threading globals
- */
-
-int num_threads = 1;
-
-/* Each worker thread has a thread id and a starting column.  The starting
-   column is the first column in the scores table the thread will process.
-   The thread then processes column start_col + num_threads, then
-   start_col + 2*num_threads, etc. */
-typedef struct worker_thread {
-        pthread_t thread_id;
-        int start_col; // Column to process first in the scores table
-} worker_thread_t;
-
-/* Global array of struct worker_thread */
-worker_thread_t *worker_threads;
-
-/*
  * Needleman-Wunsch computation instance definitions/globals
  */
 
@@ -56,7 +38,21 @@ typedef struct computation {
         pthread_rwlock_t solution_count_rwlock;
 } computation_t;
 
-/* Global computation instance for this process */
-computation_t *comp;
+/*
+ * Threading globals
+ */
+
+int num_threads = 1;
+pthread_t *worker_threads;
+
+/* Each worker thread has a thread id and a starting column.  The starting
+   column is the first column in the scores table the thread will process.
+   The thread then processes column start_col + num_threads, then
+   start_col + 2*num_threads, etc. */
+struct process_col_set_args {
+        int start_col;    /* Column in scores_table to start at */
+        computation_t *C; /* Needleman-Wunsch computation instance to */
+                          /* process columns for */
+};
 
 #endif /* __NEEDLEMAN_WUNSCH_H__ */
