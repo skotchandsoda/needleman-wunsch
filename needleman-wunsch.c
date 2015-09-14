@@ -33,17 +33,17 @@ void
 usage()
 {
         fprintf(stderr, "\
-usage: needleman-wunsch [-c][-h][-l]\n\
-           [-p num-threads][-q][-s][-t][-u] m k g\n\
+usage: needleman-wunsch [-c][-h][-l][-q][-s][-t][-u]\n\
+                        [-p num-threads] [-f sequence-file] m k g\n\
 Align two strings with the Needleman-Wunsch algorithm\n\
 operands:\n\
-  s1   first string to align (the top string)\n\
-  s2   second string to align (the side string)\n\
    m   match bonus\n\
    k   mismatch penalty\n\
    g   gap penalty\n\
 options:\n\
   -c   color the output with ANSI escape sequences\n\
+  -f sequence-file\n\
+       read the input strings from 'sequence-file' instead of standard input\n\
   -h   print this usage message\n\
   -l   list match, mismatch, and gap counts after each alignment pair\n\
   -p num-threads\n\
@@ -68,8 +68,6 @@ print_aligned_string_char(char *s1, char *s2, int n)
                 set_fmt(mismatch_char_fmt);
         } else {
                 unreachable();
-                /* fprintf(stderr, "the impossible has happened; giving up\n"); */
-                /* exit(1); */
         }
 
         /* Print the character */
@@ -176,7 +174,6 @@ walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
                  1 == T->cells[i][j].up_done &&
                  1 == T->cells[i][j].diag_done &&
                  1 == T->cells[i][j].left_done)) {
-//                fprintf(stderr, "@ (%d,%d)\n", i, j);
 
                 // We've visited the cell, so mark it as part of the
                 // optimal path
@@ -273,12 +270,6 @@ mark_optimal_path_in_table(computation_t *C)
         int max_aligned_strlen;
         char *X;
         char *Y;
-
-        /* struct walk_table_args *args = (struct walk_table_args *)malloc(num_threads * sizeof(struct walk_table_args)); */
-        /* int num_threads_spawned = 0; */
-        /* while (num_threads_spawned < num_threads) { */
-
-        /* } */
 
         // Allocate buffers for printing the
         // optimally aligned strings.  In the worst case they will be
@@ -446,11 +437,6 @@ process_column_set(void *args)
 void
 compute_table_scores(computation_t *C)
 {
-        /* If we're printing the table, initialize the largest value */
-        if (tflag == 1) {
-                C->scores_table->greatest_abs_val = 0;
-        }
-
         /* Allocate storage for thread ids and arguments to process_col_set */
         worker_threads = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
         check(NULL != worker_threads, "malloc failed");
@@ -475,15 +461,14 @@ compute_table_scores(computation_t *C)
                 check(0 == res, "pthread_create failed");
         }
 
+        /* Join the worker threads */
         int res;
         for (int i = 0; i < num_threads; i++) {
                 res = pthread_join(worker_threads[i], NULL);
                 check(0 == res, "pthread_join failed");
                 debug("Joined thread %d", i+1);
         }
-
-        /* Join the worker threads */
-        debug("Joining %d worker thread%s", num_threads,
+        debug("Joined %d worker thread%s", num_threads,
               (num_threads == 1 ? "" : "s"));
 
 
@@ -503,15 +488,15 @@ init_computation(char *s1, char *s2, int m, int k, int g)
            the input strings' lengths to make room for the base
            row/column (see init_table()) */
         int M = strlen(s1) + 1;
-        debug("Top string is %d characters long.", M);
+        debug("Top string is %d characters long", M);
         int N = strlen(s2) + 1;
-        debug("Side string is %d characters long.", N);
+        debug("Side string is %d characters long", N);
 
         /* Create and initialize the scores table */
         debug("Allocating scores table");
         C->scores_table = alloc_table(M, N);
         debug("Initializing scores table");
-        init_table(C->scores_table, g, (num_threads > 1));
+        init_table(C->scores_table, g, (num_threads > 1), tflag);
 
         /* Alignment strings */
         C->top_string = s1;
@@ -545,10 +530,12 @@ void
 print_summary(computation_t *C)
 {
         unsigned int soln_count = get_solution_count(C);
+        int max_col = C->scores_table->M - 1;
+        int max_row = C->scores_table->N - 1;
         printf("%d optimal alignment%s\n",
                soln_count, (soln_count > 1 ? "s" : ""));
         printf("Optimal score is %-d\n",
-               C->scores_table->cells[C->scores_table->M-1][C->scores_table->N-1].score);
+               C->scores_table->cells[max_col][max_row].score);
 }
 
 void
@@ -586,74 +573,74 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int g)
 }
 
 void
-stdin_check_fgetc_err_and_eof(int eof_ok)
+check_fgetc_err_and_eof(FILE *in, int eof_ok)
 {
         /* Verify we didn't get an error */
-        check(0 == ferror(stdin), "fgetc failed");
+        check(0 == ferror(in), "fgetc failed");
 
         /* Verify we're not already at the end of stdin */
         if (1 != eof_ok) {
-                check(0 == feof(stdin),
+                check(0 == feof(in),
                       "got EOF too early when reading input strings");
         }
 }
 
 char *
-read_sequence_from_stdin(int eof_ok)
+read_sequence_from_stream(FILE *in, int eof_ok)
 {
         int c;
         int i = 0;
-        int s_max = INPUT_STRING_BASE_SIZE;
-        char *s = (char *)malloc(s_max * sizeof(char));
+        int seq_max = INPUT_STRING_BASE_SIZE;
+        char *seq = (char *)malloc(seq_max * sizeof(char));
 
         /* Read characters from stdin into string s until we hit whitespace */
-        while (EOF != (c = fgetc(stdin))) {
+        while (EOF != (c = fgetc(in))) {
                 if (isspace(c)) {
                         break;
                 } else {
-                        s[i] = (char)c;
+                        seq[i] = (char)c;
                         i = i + 1;
                 }
 
                 /* If we're out of room, allocate more space */
-                if (s_max == i) {
-                        s = realloc(s, s_max + INPUT_STRING_BASE_SIZE);
-                        check(NULL != s, "realloc failed");
-                        s_max = s_max + INPUT_STRING_BASE_SIZE;
+                if (seq_max == i) {
+                        seq = realloc(seq, seq_max + INPUT_STRING_BASE_SIZE);
+                        check(NULL != seq, "realloc failed");
+                        seq_max = seq_max + INPUT_STRING_BASE_SIZE;
                 }
         }
 
         /* Make sure we didn't get an error or find EOF prematurely */
-        stdin_check_fgetc_err_and_eof(eof_ok);
+        check_fgetc_err_and_eof(in, eof_ok);
 
         /* Null-terminate the input string by hand */
-        s[i+1] = '\0';
+        seq[i+1] = '\0';
 
-        return s;
+        return seq;
 }
 
 void
-read_strings_from_stdin(char **s1, char **s2)
+read_sequences(char **s1, char **s2, FILE *in)
 {
-        /* Read the first string from stdin */
-        char *X = read_sequence_from_stdin(0);
+        /* Read the first string from the input stream */
+        char *X = read_sequence_from_stream(in, 0);
 
         /* Read out the rest of the whitespace */
         int c = (int)' ';
         while (isspace(c)) {
-                c = fgetc(stdin);
+                c = fgetc(in);
         }
 
-        stdin_check_fgetc_err_and_eof(0);
+        check_fgetc_err_and_eof(in, 0);
 
         /* Put the last character back, as it's part of the next sequence */
-        int res = ungetc(c, stdin);
+        int res = ungetc(c, in);
         check(EOF != res, "ungetc failed");
 
-        /* Read the second string from stdin */
-        char *Y = read_sequence_from_stdin(1);
+        /* Read the second string from the input stream */
+        char *Y = read_sequence_from_stream(in, 1);
 
-        /* Place X and Y in the global computation instance */
+        /* Make X & Y available globally */
         *s1 = X;
         *s2 = Y;
 }
@@ -665,6 +652,9 @@ main(int argc, char **argv)
         char *s1;
         char *s2;
 
+        char *infile_path = NULL;
+        FILE *in = NULL;
+
         /* Scoring values */
         int m, k, g;
 
@@ -672,10 +662,13 @@ main(int argc, char **argv)
         extern char *optarg;
         extern int optind;
         int c;
-        while ((c = getopt(argc, argv, "chlp:qstu")) != -1) {
+        while ((c = getopt(argc, argv, "cf:hlp:qstu")) != -1) {
                 switch (c) {
                 case 'c':
                         cflag = 1;
+                        break;
+                case 'f':
+                        infile_path = optarg;
                         break;
                 case 'h':
                         usage();
@@ -711,17 +704,25 @@ main(int argc, char **argv)
         /* Set program name */
         set_prog_name(argv[0]);
 
-        /* Parse operands */
+        /* Make sure we have enough operands */
         if ((optind + 3) > argc) {
                 usage();
-        } else {
-                read_strings_from_stdin(&s1, &s2);
-
-                /* Scoring values */
-                m = atoi(argv[optind + 0]);
-                k = atoi(argv[optind + 1]);
-                g = atoi(argv[optind + 2]);
         }
+
+        /* If we got a filename, read the strings from that file.
+           Otherwise, read the strings from stdin. */
+        if (NULL == infile_path) {
+                in = stdin;
+        } else {
+                in = fopen(infile_path, "r");
+                check(NULL != in, "Failed to open %s", infile_path);
+        }
+        read_sequences(&s1, &s2, in);
+
+        /* Scoring values */
+        m = atoi(argv[optind + 0]);
+        k = atoi(argv[optind + 1]);
+        g = atoi(argv[optind + 2]);
 
         /* Solve */
         needleman_wunsch(s1, s2, m, k, g);
