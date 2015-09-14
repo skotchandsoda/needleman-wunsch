@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "dbg.h"
 #include "format.h"
 #include "table.h"
 
@@ -23,35 +24,21 @@
 table_t *
 alloc_table(int M, int N)
 {
-        // Allocate for the struct table
+        /* Allocate for the scores table */
         table_t *T = (table_t *)malloc(sizeof(table_t));
-        if (T == NULL) {
-                perror("malloc failed");
-                exit(1);
-        }
+        check(NULL != T, "malloc failed");
 
         T->M = M;
         T->N = N;
 
-        // Allocate top-level array for T->cells
+        /* Allocate top-level array for T->cells */
         T->cells = (cell_t **)malloc(T->M * sizeof(cell_t *));
-        if (T->cells == NULL) {
-                perror("malloc failed");
-                exit(1);
-        }
+        check(NULL != T->cells, "malloc failed");
 
-        // Allocate subarrays for T->cells.  Note that we explicitly zero
-        // the cell_t arrays with the assignment to DEFAULT_CELL
+        /* Allocate subarrays for T->cells */
         for (int i = 0; i < T->M; i++) {
                 T->cells[i] = (cell_t *)calloc(T->N, sizeof(cell_t));
-                if (T->cells[i] == NULL) {
-                        perror("malloc failed");
-                        exit(1);
-                } /* else { */
-                /*         for (int j = 0; j < T->N; j++) { */
-                /*                 T->cells[i][j] = DEFAULT_CELL; */
-                /*         } */
-                /* } */
+                check(NULL != T->cells[i], "malloc failed");
         }
 
         return T;
@@ -60,25 +47,28 @@ alloc_table(int M, int N)
 void
 free_table(table_t *T, int multiple_threads)
 {
-        // Free each subarray of cells
-        for (int i = 0; i < T->M; i++) {
-                free(T->cells[i]);
-        }
-
         /* Destroy mutex and conditional variable objects */
+        int res;
         if (1 == multiple_threads) {
                 for (int i = 0; i < T->M; i++) {
                         for (int j = 0; j < T->N; j++) {
-                                pthread_mutex_destroy(&T->cells[i][j].score_mutex);
-                                pthread_cond_destroy(&T->cells[i][j].processed_cv);
+                                res = pthread_mutex_destroy(&T->cells[i][j].score_mutex);
+                                check(0 == res, "pthread_mutex_destroy failed");
+                                res = pthread_cond_destroy(&T->cells[i][j].processed_cv);
+                                check(0 == res, "pthread_cond_destroy");
                         }
                 }
         }
 
-        // Free the top-level array of cell pointers
+        /* Free each subarray (column) of cells */
+        for (int i = 0; i < T->M; i++) {
+                free(T->cells[i]);
+        }
+
+        /* Free the top-level array of cell pointers */
         free(T->cells);
 
-        // Free the table_t itself
+        /* Free the scores table itself */
         free(T);
 }
 
@@ -86,13 +76,14 @@ void
 init_table(table_t *T, int d, int multiple_threads)
 {
         /* Initialize all mutex and condition variable objects */
+        int res;
         if (1 == multiple_threads) {
                 for (int i = 0; i < T->M; i++) {
                         for (int j = 0; j < T->N; j++) {
-                                pthread_mutex_init(&T->cells[i][j].score_mutex,
-                                                   NULL);
-                                pthread_cond_init (&T->cells[i][j].processed_cv,
-                                                   NULL);
+                                res = pthread_mutex_init(&T->cells[i][j].score_mutex, NULL);
+                                check(0 == res, "pthread_mutex_init failed");
+                                res = pthread_cond_init (&T->cells[i][j].processed_cv, NULL);
+                                check(0 == res, "pthread_cond_init failed");
                         }
                 }
         }
@@ -105,7 +96,7 @@ init_table(table_t *T, int d, int multiple_threads)
         T->cells[0][0].left_done = 1;
         T->cells[0][0].diag_done = 1;
 
-        // Rest of top row has score (-i)*d and LEFT direction
+        // Rest of top row has score i * (-d) and LEFT direction
         for (int i = 1; i < T->M; i++) {
                 T->cells[i][0].score = (-i) * d;
                 T->cells[i][0].left = 1;
@@ -114,7 +105,7 @@ init_table(table_t *T, int d, int multiple_threads)
                 T->cells[i][0].processed = 1;
         }
 
-        // Rest of leftmost column has score (-j)*d and UP direction
+        // Rest of leftmost (side) column has score j * (-d) and UP direction
         for (int j = 1; j < T->N; j++) {
                 T->cells[0][j].score = (-j) * d;
                 T->cells[0][j].up = 1;
@@ -154,8 +145,7 @@ print_arrow(arrow_t a, int optimal_path, int col_width, int col, int row, char *
             printf("  %s ", (unicode == 1 ? UNICODE_NORTH_WEST_ARROW : "\\"));
             break;
     default:
-            fprintf(stderr, "the impossible has happened; giving up\n");
-            exit(1);
+            unreachable();
             break;
     }
 
@@ -194,11 +184,11 @@ print_directional_row(table_t *T, int row, char *s1, char *s2, int col_width, in
 static void
 print_score_row(table_t *T, int row, char *s1, char *s2, int col_width, int unicode)
 {
-        // Start with either a '*' separator (if this
+        // Start with either a '-' separator (if this
         // is the first row of numbers, i.e. n == 0) or a letter from the side
         // string (s2)
         set_fmt(side_string_fmt);
-        printf("%c", (row == 0 ? '*' : s2[row-1]));
+        printf("%c", (row == 0 ? '-' : s2[row-1]));
         reset_fmt();
 
         // Now print the scores and left arrows
@@ -251,7 +241,7 @@ width_needed_to_print_integer(int x)
                 x /= 10;
                 w = w + 1;
         } while (x != 0);
-        return w + 1; // add 1 to make room for a positive/negative sign
+        return w + 1; /* add 1 to make room for a positive/negative sign */
 }
 
 void
