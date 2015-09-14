@@ -35,7 +35,7 @@ usage()
         fprintf(stderr, "\
 usage: needleman-wunsch [-c][-h][-l][-q][-s][-t][-u]\n\
                         [-p num-threads] [-f sequence-file] m k g\n\
-Align two strings with the Needleman-Wunsch algorithm\n\
+Align two sequences with the Needleman-Wunsch algorithm\n\
 operands:\n\
    m   match bonus\n\
    k   mismatch penalty\n\
