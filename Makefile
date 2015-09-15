@@ -4,8 +4,8 @@
 # See LICENSE for full copyright information.
 
 PROG = needleman-wunsch
-SRC = needleman-wunsch.c table.c format.c dbg.c
-INC = needleman-wunsch.h table.h format.h dbg.h
+SRC = needleman-wunsch.c table.c format.c dbg.c read-sequences.c
+INC = needleman-wunsch.h table.h format.h dbg.h read-sequences.h
 OBJ = ${SRC:.c=.o}
 CFLAGS = -g -O2
 LIB = -lpthread

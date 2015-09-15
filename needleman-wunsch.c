@@ -6,7 +6,6 @@
 /* needleman-wunsch - align two sequences with the Needleman-Wunsch algorithm
                       (see http://en.wikipedia.org/Needleman–Wunsch_algorithm) */
 
-#include <ctype.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -17,11 +16,10 @@
 #include "dbg.h"
 #include "format.h"
 #include "needleman-wunsch.h"
+#include "read-sequences.h"
 #include "table.h"
 
 #define GAP_CHAR '-'
-
-#define INPUT_STRING_BASE_SIZE 4096
 
 /* ANSI terminal output formatting flag (defined in format.h) */
 extern int cflag;
@@ -572,79 +570,6 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int d)
         free_computation(C);
 }
 
-void
-check_fgetc_err_and_eof(FILE *in, int eof_ok)
-{
-        /* Verify we didn't get an error */
-        check(0 == ferror(in), "fgetc failed");
-
-        /* Verify we're not already at the end of stdin */
-        if (1 != eof_ok) {
-                check(0 == feof(in),
-                      "got EOF too early when reading input strings");
-        }
-}
-
-char *
-read_sequence_from_stream(FILE *in, int eof_ok)
-{
-        int c;
-        int i = 0;
-        int seq_max = INPUT_STRING_BASE_SIZE;
-        char *seq = (char *)malloc(seq_max * sizeof(char));
-
-        /* Read characters from stdin into string s until we hit whitespace */
-        while (EOF != (c = fgetc(in))) {
-                if (isspace(c)) {
-                        break;
-                } else {
-                        seq[i] = (char)c;
-                        i = i + 1;
-                }
-
-                /* If we're out of room, allocate more space */
-                if (seq_max == i) {
-                        seq = realloc(seq, seq_max + INPUT_STRING_BASE_SIZE);
-                        check(NULL != seq, "realloc failed");
-                        seq_max = seq_max + INPUT_STRING_BASE_SIZE;
-                }
-        }
-
-        /* Make sure we didn't get an error or find EOF prematurely */
-        check_fgetc_err_and_eof(in, eof_ok);
-
-        /* Null-terminate the input string by hand */
-        seq[i+1] = '\0';
-
-        return seq;
-}
-
-void
-read_sequences(char **s1, char **s2, FILE *in)
-{
-        /* Read the first string from the input stream */
-        char *X = read_sequence_from_stream(in, 0);
-
-        /* Read out the rest of the whitespace */
-        int c = (int)' ';
-        while (isspace(c)) {
-                c = fgetc(in);
-        }
-
-        check_fgetc_err_and_eof(in, 0);
-
-        /* Put the last character back, as it's part of the next sequence */
-        int res = ungetc(c, in);
-        check(EOF != res, "ungetc failed");
-
-        /* Read the second string from the input stream */
-        char *Y = read_sequence_from_stream(in, 1);
-
-        /* Make X & Y available globally */
-        *s1 = X;
-        *s2 = Y;
-}
-
 int
 main(int argc, char **argv)
 {
@@ -717,7 +642,7 @@ main(int argc, char **argv)
                 in = fopen(infile_path, "r");
                 check(NULL != in, "Failed to open %s", infile_path);
         }
-        read_sequences(&s1, &s2, in);
+        read_two_sequences_from_stream(&s1, &s2, in);
 
         /* Scoring values */
         m = atoi(argv[optind + 0]);
