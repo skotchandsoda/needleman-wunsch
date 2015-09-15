@@ -32,7 +32,7 @@ typedef struct computation {
         char *side_string;
         int match_score;
         int mismatch_penalty;
-        int gap_penalty;
+        int indel_penalty;
         table_t *scores_table;
         unsigned int solution_count;
         pthread_rwlock_t solution_count_rwlock;

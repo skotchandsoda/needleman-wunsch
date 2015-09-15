@@ -3,7 +3,7 @@
 
    See LICENSE for full copyright information. */
 
-/* needleman-wunsch - align two strings with the Needleman-Wunsch algorithm
+/* needleman-wunsch - align two sequences with the Needleman-Wunsch algorithm
                       (see http://en.wikipedia.org/Needleman–Wunsch_algorithm) */
 
 #include <ctype.h>
@@ -34,12 +34,12 @@ usage()
 {
         fprintf(stderr, "\
 usage: needleman-wunsch [-c][-h][-l][-q][-s][-t][-u]\n\
-                        [-p num-threads] [-f sequence-file] m k g\n\
+                        [-p num-threads] [-f sequence-file] m k d\n\
 Align two sequences with the Needleman-Wunsch algorithm\n\
 operands:\n\
    m   match bonus\n\
    k   mismatch penalty\n\
-   g   gap penalty\n\
+   d   indel (gap) penalty\n\
 options:\n\
   -c   color the output with ANSI escape sequences\n\
   -f sequence-file\n\
@@ -114,7 +114,7 @@ print_aligned_strings_and_counts(char *X,
 
         // Print match/mismatch/gap counts if lflag was set
         if (print_counts == 1) {
-                printf("%d match%s, %d mismatch%s, %d gap%s\n",
+                printf("%d match%s, %d mismatch%s, %d indel%s\n",
                        match_count, (match_count == 1 ? "" : "es"),
                        mismatch_count, (mismatch_count == 1 ? "" : "es"),
                        gap_count, (gap_count == 1 ? "" : "s"));
@@ -312,7 +312,7 @@ max3(int a, int b, int c)
 }
 
 void
-process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int g)
+process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int d)
 {
         // Cell we want to compute the score for
         cell_t *target_cell = &T->cells[col][row];
@@ -323,7 +323,7 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
         cell_t *left_cell = &T->cells[col-1][row];
 
         // Candidate scores
-        int up_score = up_cell->score - g;
+        int up_score = up_cell->score - d;
         int diag_score = 0;
         if (s1[col-1] == s2[row-1]) {
                 diag_score = diag_cell->score + m;
@@ -349,7 +349,7 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
                 }
         }
 
-        int left_score = left_cell->score - g;
+        int left_score = left_cell->score - d;
 
         if (num_threads > 1) {
                 pthread_mutex_unlock(&left_cell->score_mutex);
@@ -395,12 +395,12 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
 }
 
 void
-process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int g)
+process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int d)
 {
         /* Compute the score for each cell in the column */
         for (int row = 1; row < T->N; row++) {
                 // Compute the cell's score
-                process_cell(T, col, row, s1, s2, m, k, g);
+                process_cell(T, col, row, s1, s2, m, k, d);
 
                 // If we're printing the table and the absolute value of
                 // the current cell's score is greater than the one
@@ -427,7 +427,7 @@ process_column_set(void *args)
                 process_column(C->scores_table, current_col,
                                C->top_string, C->side_string,
                                C->match_score, C->mismatch_penalty,
-                               C->gap_penalty);
+                               C->indel_penalty);
                 current_col = current_col + num_threads;
         }
 
@@ -477,7 +477,7 @@ compute_table_scores(computation_t *C)
 
 /* Allocate and initialize a Needleman-Wunsch alignment computation */
 computation_t *
-init_computation(char *s1, char *s2, int m, int k, int g)
+init_computation(char *s1, char *s2, int m, int k, int d)
 {
         /* Allocate for alignment computation instance */
         debug("Allocating for computation");
@@ -496,7 +496,7 @@ init_computation(char *s1, char *s2, int m, int k, int g)
         debug("Allocating scores table");
         C->scores_table = alloc_table(M, N);
         debug("Initializing scores table");
-        init_table(C->scores_table, g, (num_threads > 1), tflag);
+        init_table(C->scores_table, d, (num_threads > 1), tflag);
 
         /* Alignment strings */
         C->top_string = s1;
@@ -505,7 +505,7 @@ init_computation(char *s1, char *s2, int m, int k, int g)
         /* Alignment scores/penalties */
         C->match_score = m;
         C->mismatch_penalty = k;
-        C->gap_penalty = g;
+        C->indel_penalty = d;
 
         /* Total number of solutions founds */
         C->solution_count = 0;
@@ -539,10 +539,10 @@ print_summary(computation_t *C)
 }
 
 void
-needleman_wunsch(char *s1, char *s2, int m, int k, int g)
+needleman_wunsch(char *s1, char *s2, int m, int k, int d)
 {
         /* Initialize computation */
-        computation_t *C = init_computation(s1, s2, m, k, g);
+        computation_t *C = init_computation(s1, s2, m, k, d);
 
         /* Fill out table, i.e. compute the optimal score */
         compute_table_scores(C);
@@ -656,7 +656,7 @@ main(int argc, char **argv)
         FILE *in = NULL;
 
         /* Scoring values */
-        int m, k, g;
+        int m, k, d;
 
         // Parse option flags
         extern char *optarg;
@@ -722,10 +722,10 @@ main(int argc, char **argv)
         /* Scoring values */
         m = atoi(argv[optind + 0]);
         k = atoi(argv[optind + 1]);
-        g = atoi(argv[optind + 2]);
+        d = atoi(argv[optind + 2]);
 
         /* Solve */
-        needleman_wunsch(s1, s2, m, k, g);
+        needleman_wunsch(s1, s2, m, k, d);
 
         /* Clean up */
         free(s1);
