@@ -40,7 +40,7 @@
 #include "read-sequences.h"
 
 static void
-check_fgetc_err_and_eof(FILE *in, int eof_ok)
+check_stream_for_err_and_eof(FILE *in, int eof_ok)
 {
         /* Verify we didn't get an error */
         check(0 == ferror(in), "fgetc failed");
@@ -59,6 +59,7 @@ read_sequence_from_stream(FILE *in, int eof_ok)
         int i = 0;
         int seq_max = INPUT_STRING_BUF_SIZE;
         char *seq = (char *)malloc(seq_max * sizeof(char));
+        check(NULL != seq, "malloc failed");
 
         /* Read characters from stdin into seq until we hit whitespace */
         while (EOF != (c = fgetc(in)) && !isspace(c)) {
@@ -74,13 +75,27 @@ read_sequence_from_stream(FILE *in, int eof_ok)
         }
 
         /* Make sure we didn't get an error or find EOF prematurely */
-        check_fgetc_err_and_eof(in, eof_ok);
+        check_stream_for_err_and_eof(in, eof_ok);
 
         /* Null-terminate the input string by hand.  Note that i is the
          * last index we never wrote a character to */
         seq[i] = '\0';
 
         return seq;
+}
+
+/*
+ * Read in characters until isspace(3) returns false, then return that first
+ * non-whitespace character as a signed integer.
+ */
+static int
+discard_whitespace_in_stream(FILE *s)
+{
+        int c = (int)' ';
+        while (isspace(c)) {
+                c = fgetc(s);
+        }
+        return c;
 }
 
 void
@@ -90,12 +105,8 @@ read_two_sequences_from_stream(char **s1, char **s2, FILE *in)
         char *X = read_sequence_from_stream(in, 0);
 
         /* Read out the rest of the whitespace */
-        int c = (int)' ';
-        while (isspace(c)) {
-                c = fgetc(in);
-        }
-
-        check_fgetc_err_and_eof(in, 0);
+        int c = discard_whitespace_in_stream(in);
+        check_stream_for_err_and_eof(in, 0);
 
         /* Put the last character back, as it's part of the next sequence */
         int res = ungetc(c, in);
