@@ -587,10 +587,14 @@ main(int argc, char **argv)
 
         int num_threads = 1;
 
-        // Parse option flags
+        /* Set program name */
+        set_prog_name(argv[0]);
+
+        /* Parse option flags */
         extern char *optarg;
         extern int optind;
         int c;
+
         while ((c = getopt(argc, argv, "cf:hlp:qstu")) != -1) {
                 switch (c) {
                 case 'c':
@@ -630,9 +634,6 @@ main(int argc, char **argv)
                 }
         }
 
-        /* Set program name */
-        set_prog_name(argv[0]);
-
         /* Make sure we have the right number of operands */
         if (optind + NUM_OPERANDS != argc) {
                 log_err("expected %d operands; received %s %d", NUM_OPERANDS,
@@ -653,12 +654,12 @@ main(int argc, char **argv)
 
         read_two_sequences_from_stream(&s1, &s2, in);
 
-        /* Scoring values */
+        /* Set scoring values to operands give on command-line */
         m = atoi(argv[optind + 0]);
         k = atoi(argv[optind + 1]);
         d = atoi(argv[optind + 2]);
 
-        /* Solve */
+        /* Solve the alignment */
         needleman_wunsch(s1, s2, m, k, d, num_threads);
 
         /* Clean up */
