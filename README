@@ -170,34 +170,42 @@ EXAMPLES
 
 FUTURE WORK
 
-  * General cleanup of code style, comment style, and debug output.
+  High Priority
 
-  * A manual page.
+    * General cleanup of code style, comment style, and debug output.
 
-  * A common tool, "align," for Needleman-Wunsch, Smith-Waterman, and
-    Overlap (the three classic sequence alignment algorithms).  There
-    are lots of similarities between Needleman-Wunsch and the other two
-    classic sequence alignment algorithms.  Refactoring existing code and
-    making a common tool should be fairly straightforward.
+    * A manual page.
 
-  * Affine gap functions, or at least support for different penalties
-    for gap openings and gap extensions, i.e. a d0 and an optional d1 as
-    operands.
+    * A common tool, "align," for Needleman-Wunsch, Smith-Waterman, and
+      Overlap (the three classic sequence alignment algorithms).  There
+      are lots of similarities between Needleman-Wunsch and the other
+      two classic sequence alignment algorithms.  Refactoring existing
+      code and making a common tool should be fairly straightforward.
 
-  * Parallel walking of the internal scores table.  On larger,
-    dissimilar inputs, reconstructing all optimal alignments is
-    incredibly slow.  Multiple threads could maintain separate state
-    tables for individual walks of the scores table starting at
-    different points.  Output stream sharing could be handled with a
-    semaphore.
+    * Affine gap functions, or at least support for different penalties
+      for gap openings and gap extensions, i.e. a d0 and an optional d1
+      as operands.
 
-  * Automatic tuning of parallel portions.  On most platforms, the '-p'
-    options and a thread count shouldn't be necessary.  Using cachegrind
-    and/or other profiling tools we should be able to figure out an
-    equation for the optimal number of threads on a given machine with a
-    given clock speed, logical core count, and L1-LN cache sizes.
+  Medium Priority
 
-  * Shrink the memory footprint in the scores table.  We currently use
-    integers where booleans would be more appropriate.  For even more
-    space, we could squeeze all the boolean flags as bits into a byte or
-    two and set/retrieve the values with bitwise operations.
+    * Parallel walking of the internal scores table.  On larger,
+      dissimilar inputs, reconstructing all optimal alignments is
+      incredibly slow.  Multiple threads could maintain separate state
+      tables for individual walks of the scores table starting at
+      different points.  Output stream sharing could be handled with a
+      semaphore.
+
+    * Shrink the memory footprint in the scores table.  We currently use
+      integers where booleans would be more appropriate.  For even more
+      space, we could squeeze all the boolean flags as bits into a byte
+      or two and set/retrieve the values with bitwise operations.
+
+  Low Priority
+
+    * Automatic tuning of parallel portions.  On most platforms, the
+      '-p' options and a thread count shouldn't be necessary.  Using
+      cachegrind and/or other profiling tools we should be able to
+      figure out an equation for the optimal number of threads for a
+      given input size on a given machine (e.g. clock speed,
+      logical core count, and L1-LN cache sizes via sysctl(3)).
+
