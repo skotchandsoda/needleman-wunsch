@@ -13,6 +13,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "computation.h"
 #include "dbg.h"
 #include "format.h"
 #include "needleman-wunsch.h"
@@ -51,8 +52,7 @@ options:\n\
   -q   be quiet and don't print the aligned strings\n\
   -s   summarize the algorithm's run\n\
   -t   print the scores table; only useful for shorter input strings\n\
-  -u   use unicode arrows when printing the scores table\n"
-);
+  -u   use unicode arrows when printing the scores table\n");
         exit(1);
 }
 
@@ -291,23 +291,22 @@ mark_optimal_path_in_table(computation_t *C)
            (alignments) */
         walk_table(C, X, Y, i, j);
 
-        // Clean up buffers
+        /* Clean up buffers */
         free(X);
         free(Y);
 }
 
 void
-inc_branch_count(table_t *T)
+inc_branch_count(computation_t *C)
 {
-        if (num_threads > 1) {
-                pthread_rwlock_wrlock(&(T->branch_count_rwlock));
+        if (C->num_threads > 1) {
+                pthread_rwlock_wrlock(&C->scores_table->branch_count_rwlock);
         }
 
-        T->branch_count = T->branch_count + 1;
-        /* debug("%u branches so far\n", T->branch_count); */
+        C->scores_table->branch_count = C->scores_table->branch_count + 1;
 
-        if (num_threads > 1) {
-                pthread_rwlock_unlock(&(T->branch_count_rwlock));
+        if (C->num_threads > 1) {
+                pthread_rwlock_unlock(&C->scores_table->branch_count_rwlock);
         }
 }
 
@@ -321,24 +320,24 @@ max3(int a, int b, int c)
 }
 
 void
-process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int d)
+process_cell(computation_t *C, int col, int row)
 {
         /* Cell we want to compute the score for */
-        cell_t *target_cell = &T->cells[col][row];
+        cell_t *target_cell = &C->scores_table->cells[col][row];
 
         /* Cells we'll use to compute target_cell's score */
-        cell_t *up_cell   = &T->cells[col][row-1];
-        cell_t *diag_cell = &T->cells[col-1][row-1];
-        cell_t *left_cell = &T->cells[col-1][row];
+        cell_t *up_cell   = &C->scores_table->cells[col][row-1];
+        cell_t *diag_cell = &C->scores_table->cells[col-1][row-1];
+        cell_t *left_cell = &C->scores_table->cells[col-1][row];
 
         /* Candidate scores */
-        int up_score = up_cell->score - d;
+        int up_score = up_cell->score - C->indel_penalty;
         int diag_score = 0;
-        if (s1[col-1] == s2[row-1]) {
-                diag_score = diag_cell->score + m;
+        if (C->top_string[col-1] == C->side_string[row-1]) {
+                diag_score = diag_cell->score + C->match_score;
                 target_cell->match = 1;
         } else {
-                diag_score = diag_cell->score - k;
+                diag_score = diag_cell->score - C->mismatch_penalty;
                 target_cell->match = 0;
         }
 
@@ -346,7 +345,7 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
          * BEGIN CRITICAL SECTIONS
          */
 
-        if (num_threads > 1) {
+        if (C->num_threads > 1) {
                 /* Wait for signal that left_cell is processed, then
                    lock the left cell's score mutex. */
                 pthread_mutex_lock(&left_cell->score_mutex);
@@ -356,7 +355,7 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
                 }
         }
 
-        int left_score = left_cell->score - d;
+        int left_score = left_cell->score - C->indel_penalty;
 
         if (num_threads > 1) {
                 /* We're done with the left score, so free the mutex */
@@ -408,17 +407,19 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
         /* If we can branch here, i.e. multiple paths have the same
            scores, note it. */
         if (target_cell->diag + target_cell->up + target_cell->left > 1) {
-                inc_branch_count(T);
+                inc_branch_count(C);
         }
 }
 
 void
-process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int d)
+process_column(computation_t *C, int col)
 {
+        table_t *T = C->scores_table;
+
         /* Compute the score for each cell in the column */
-        for (int row = 1; row < T->N; row++) {
+        for (int row = 1; row < C->scores_table->N; row++) {
                 // Compute the cell's score
-                process_cell(T, col, row, s1, s2, m, k, d);
+                process_cell(C, col, row);
 
                 // If we're printing the table and the absolute value of
                 // the current cell's score is greater than the one
@@ -442,24 +443,19 @@ process_column_set(void *args)
 
         /* Process all columns in the thread's column set */
         while (current_col < C->scores_table->M) {
-                /* debug("Thread %d: Processing scores table column %d", */
-                      /* A->start_col, current_col); */
-                process_column(C->scores_table, current_col,
-                               C->top_string, C->side_string,
-                               C->match_score, C->mismatch_penalty,
-                               C->indel_penalty);
+                process_column(C, current_col);
                 current_col = current_col + num_threads;
         }
 
-        return NULL;
+        return NULL; /* FIXME: Return some value indicating success? */
 }
 
 void
 compute_table_scores(computation_t *C)
 {
         /* Allocate storage for thread ids and arguments to process_col_set */
-        worker_threads = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
-        check(NULL != worker_threads, "malloc failed");
+        C->worker_threads = (pthread_t *)malloc(C->num_threads * sizeof(pthread_t));
+        check(NULL != C->worker_threads, "malloc failed");
         struct process_col_set_args *args;
         args = (struct process_col_set_args *)malloc(num_threads *
                                                      sizeof(struct process_col_set_args));
@@ -467,15 +463,15 @@ compute_table_scores(computation_t *C)
 
         /* Spawn worker threads to process sets of columns */
         debug("Spawning %d worker thread%s for scores table computation",
-              num_threads, (num_threads == 1 ? "" : "s"));
-        for (int i = 0; i < num_threads; i++) {
+              C->num_threads, (C->num_threads == 1 ? "" : "s"));
+        for (int i = 0; i < C->num_threads; i++) {
                 /* Initialize thread-local arguments for processing a
                    column set */
                 args[i].start_col = i + 1;
                 args[i].C = C;
 
                 /* Spawn the thread */
-                int res = pthread_create(&worker_threads[i], NULL,
+                int res = pthread_create(&(C->worker_threads[i]), NULL,
                                          process_column_set,
                                          &args[i]);
                 check(0 == res, "pthread_create failed");
@@ -483,65 +479,18 @@ compute_table_scores(computation_t *C)
 
         /* Join the worker threads */
         int res;
-        for (int i = 0; i < num_threads; i++) {
-                res = pthread_join(worker_threads[i], NULL);
+        for (int i = 0; i < C->num_threads; i++) {
+                res = pthread_join(C->worker_threads[i], NULL);
                 check(0 == res, "pthread_join failed");
                 debug("Joined thread %d", i+1);
         }
-        debug("Joined %d worker thread%s", num_threads,
-              (num_threads == 1 ? "" : "s"));
-        free(worker_threads);
+        debug("Joined %d worker thread%s", C->num_threads,
+              (C->num_threads == 1 ? "" : "s"));
+        free(C->worker_threads);
         debug("%u branches in table\n", C->scores_table->branch_count);
 }
 
-/* Allocate and initialize a Needleman-Wunsch alignment computation */
-computation_t *
-init_computation(char *s1, char *s2, int m, int k, int d)
-{
-        /* Allocate for alignment computation instance */
-        debug("Allocating for computation");
-        computation_t *C = (computation_t *)malloc(sizeof(computation_t));
-        check(NULL != C, "malloc failed");
 
-        /* We use an MxN table (M cols, N rows).  We add 1 to each of
-           the input strings' lengths to make room for the base
-           row/column (see init_table()) */
-        int M = strlen(s1) + 1;
-        debug("Top string is %d characters long", M);
-        int N = strlen(s2) + 1;
-        debug("Side string is %d characters long", N);
-
-        /* Create and initialize the scores table */
-        debug("Allocating scores table");
-        C->scores_table = alloc_table(M, N);
-        debug("Initializing scores table");
-        init_table(C->scores_table, d, (num_threads > 1), tflag);
-
-        /* Alignment strings */
-        C->top_string = s1;
-        C->side_string = s2;
-
-        /* Alignment scores/penalties */
-        C->match_score = m;
-        C->mismatch_penalty = k;
-        C->indel_penalty = d;
-
-        /* Total number of solutions found */
-        C->solution_count = 0;
-        int res = pthread_rwlock_init(&(C->solution_count_rwlock), NULL);
-        check(0 == res, "pthread_rwlock_init failed");
-
-        return C;
-}
-
-void
-free_computation(computation_t *C)
-{
-        free_table(C->scores_table, (num_threads > 1));
-        int res = pthread_rwlock_destroy(&C->solution_count_rwlock);
-        check(0 == res, "pthread_rwlock_destroy failed");
-        free(C);
-}
 
 /* Print details about the algorithm's run, i.e. number of optimal
    alignments and maximum possible score */
@@ -558,10 +507,11 @@ print_summary(computation_t *C)
 }
 
 void
-needleman_wunsch(char *s1, char *s2, int m, int k, int d)
+needleman_wunsch(char *s1, char *s2, int m, int k, int d, int num_threads)
 {
-        /* Initialize computation */
-        computation_t *C = init_computation(s1, s2, m, k, d);
+        /* Allocate and initialize computation */
+        computation_t *C = alloc_computation();
+        init_computation(C, s1, s2, m, k, d, num_threads);
 
         /* Fill out table, i.e. compute the optimal score */
         compute_table_scores(C);
@@ -604,6 +554,8 @@ main(int argc, char **argv)
 
         /* Scoring values */
         int m, k, d;
+
+        int num_threads = 1;
 
         // Parse option flags
         extern char *optarg;
@@ -677,7 +629,7 @@ main(int argc, char **argv)
         d = atoi(argv[optind + 2]);
 
         /* Solve */
-        needleman_wunsch(s1, s2, m, k, d);
+        needleman_wunsch(s1, s2, m, k, d, num_threads);
 
         /* Clean up */
         free(s1);

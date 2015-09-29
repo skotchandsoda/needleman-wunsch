@@ -23,22 +23,6 @@ int tflag = 0;
 int uflag = 0;
 
 /*
- * Needleman-Wunsch computation instance definition
- */
-
-/* Instance of a Needleman-Wunsch alignment computation */
-typedef struct computation {
-        char *top_string;
-        char *side_string;
-        int match_score;
-        int mismatch_penalty;
-        int indel_penalty;
-        table_t *scores_table;
-        unsigned int solution_count;
-        pthread_rwlock_t solution_count_rwlock;
-} computation_t;
-
-/*
  * Threading globals
  */
 

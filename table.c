@@ -70,7 +70,7 @@ free_table(table_t *T, int multiple_threads)
 }
 
 void
-init_table(table_t *T, int d, int multiple_threads, int print_table)
+init_table(table_t *T, int d, int multiple_threads)
 {
         /* Initialize all mutex and condition variable objects */
         int res;
@@ -85,10 +85,8 @@ init_table(table_t *T, int d, int multiple_threads, int print_table)
                 }
         }
 
-        /* If we're printing the table, initialize the largest value */
-        if (print_table == 1) {
-                T->greatest_abs_val = 0;
-        }
+        /* Initialize the largest value */
+        T->greatest_abs_val = 0;
 
         /* Initialize the table.  0,0 has score 0 and has no optimal
            direction */
@@ -107,7 +105,8 @@ init_table(table_t *T, int d, int multiple_threads, int print_table)
                 T->cells[i][0].processed = 1;
         }
 
-        // Rest of leftmost (side) column has score j * (-d) and UP direction
+        /* Rest of leftmost (side) column has score j * (-d) and UP
+         * direction */
         for (int j = 1; j < T->N; j++) {
                 T->cells[0][j].score = j * (-d);
                 T->cells[0][j].up = 1;
@@ -116,6 +115,7 @@ init_table(table_t *T, int d, int multiple_threads, int print_table)
                 T->cells[0][j].processed = 1;
         }
 
+        T->branch_count = 0;
         res = pthread_rwlock_init(&(T->branch_count_rwlock), NULL);
         check(0 == res, "pthread_rwlock_init failed");
 }
