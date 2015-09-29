@@ -259,7 +259,7 @@ static void
 print_top_string(table_t *T, char *s1, int col_width)
 {
         set_fmt(top_string_fmt);
-        printf("*    %*s", col_width, "*");
+        printf("*    %*s", col_width, "-");
         for (int i = 0; i < T->M - 1; i++) {
                 printf("    %*s%c", col_width-1, "", s1[i]);
         }
