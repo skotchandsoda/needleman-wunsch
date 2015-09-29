@@ -69,10 +69,10 @@ DESCRIPTION
   The '-c' flag also colors mismatched characters in the aligned string
   printouts.
 
-  While support is still experimental (read: slow and not proven
-  correct), you can enable parallel scoring of the internal scores table
-  with the '-p' option and an integer argument for the number of
-  threads to use.  This argument must be greater than 1.
+  While support is still experimental (read: slow and not rigorously
+  proven correct), you can enable parallel scoring of the internal
+  scores table with the '-p' option and an integer argument for the
+  number of threads to use.  This argument must be greater than 1.
 
 BUILDING
 
@@ -83,7 +83,7 @@ BUILDING
 
     $ make
 
-  On BSD or another POSIX platform you may need to specify GNU make:
+  On BSD or another POSIX platform, you may need to specify GNU make:
 
     $ gmake
 
