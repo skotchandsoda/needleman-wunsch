@@ -4,19 +4,37 @@ NAME
 
 SYNOPSIS
 
-  needleman-wunsch [-chiqstu] s1 s2 m k d
+  needleman-wunsch [-c][-h][-l][-q][-s][-t][-u]
+                   [-p num-threads] [-f sequence-file] m k d
 
 DESCRIPTION
 
   needleman-wunsch is a utility for computing the optimal alignments of
-  two strings with the Needleman-Wunsch algorithm
-  (see http://en.wikipedia.org/Needleman-Wunsch_algorithm).
+  two strings with the Needleman-Wunsch algorithm.  See the Wikipedia
+  article on the algorithm for implementations details and links to
+  related algorithms:
+  http://en.wikipedia.org/Needleman-Wunsch_algorithm
 
-  By default, it computes the alignment for the input strings (s1 and
-  s2) and prints all optimal alignment pairs, given inputs m, k, and
-  d, to the standard output.  You can print matching/mismatching/gap
-  character counts for each alignment pair with the '-i' flag.  You can
-  also print a summary of the output with the '-s' flag.
+  By default, needleman-wunsch reads two whitespace-separated input
+  strings from the standard input, computes the optimal alignment score
+  for the input strings, and then prints all optimal alignment pairs for
+  the input strings to the standard output.  You can list matching,
+  mismatching, and gap character counts for each alignment pair with the
+  '-l' flag.  You can also print a summary of the algorithm's run (the
+  number of optimal alignments and the optimal alignment score) with the
+  '-s' flag.
+
+  If the '-f' option and a filename is given, the two input strings will
+  be read from the given file, and any input on the standard input will
+  be ignored.
+
+  The resulting output is tuned with the m, k, and d operands, which
+  correspond to the match bonus, mismatch penalty, and indel (gap)
+  penalty, respectively, in the Needleman-Wunsch algorithm.  Parameter
+  tuning for sequence alignment is well outside the scope of this
+  README, but one place to start is the Wikipedia page for the
+  Needleman-Wunsch algorithm:
+  http://en.wikipedia.org/Needleman-Wunsch_algorithm
 
   The default behavior (printing all optimal alignment pairs) can be
   suppressed with the '-q' flag.
@@ -30,58 +48,84 @@ DESCRIPTION
   Portable though this may be, it is somewhat ugly.  For a prettier
   table printout, use the '-u' flag.  needleman-wunsch will then use
   Unicode characters 'LEFTWARDS ARROW' (U+2190), 'UPWARDS ARROW'
-  (U+2191), and 'NORTH WEST ARROW (U+2196) instead.
+  (U+2191), and 'NORTH WEST ARROW (U+2196) instead.  If the font for
+  your terminal doesn't define glyphs for those symbols you'll just see
+  empty boxes in their place.
 
   Note that the table printout will only be legible and useful if your
-  input is relatively small.
+  input is relatively small.  Each "column" of the table uses a minimum
+  of 5 character columns in the output terminal, and the top string (the
+  first input string) requires an extra two "columns" of padding, so for
+  an 80x24 terminal the top string (the first input string) could be at
+  most 10 characters long before the lines began to wrap on even a
+  low-scoring output table.
 
   To make the table easier to read, you can enable colored output with
   the '-c' flag.  This turns on ANSI escape-sequence formatting, which
   will bolden and color the optimal path within the table.  Obviously,
-  if you are piping the program output to another program you shouldn't
-  have this enabled.
+  if you are piping the program output to another program, you should
+  not enable this.
 
   The '-c' flag also colors mismatched characters in the aligned string
   printouts.
 
+  While support is still experimental, you can enable parallel scoring
+  of the internal scores table with the '-p' option and a numerical
+  argument for the number of threads to use.  The number of threads
+  given must be an integer value greater than 1.
+
 BUILDING
 
-  To build needleman-wunsch on a POSIX platform:
+  needleman-wunsch is written in C99 and depends on pthreads.  Its
+  makefile uses some GNU extensions to the POSIX standard.  So, to build
+  it on any recent Linux distribution or OS X, it should be sufficient
+  to just run make:
 
     $ make
 
-EXAMPLE
+  On BSD or another POSIX platform you may need to specify GNU make:
+
+    $ gmake
+
+EXAMPLES
 
   $ ./needleman-wunsch -h
-  usage: needleman-wunsch [-chiqstu] s1 s2 m k d
-  Align two strings with the Needleman-Wunsch algorithm
-  arguments:
-    s1   first string to align (the "top string")
-    s2   second string to align (the "side string")
+  usage: needleman-wunsch [-c][-h][-l][-q][-s][-t][-u]
+                          [-p num-threads] [-f sequence-file] m k d
+  Align two sequences with the Needleman-Wunsch algorithm
+  operands:
      m   match bonus
      k   mismatch penalty
-     d   gap penalty
+     d   indel (gap) penalty
   options:
     -c   color the output with ANSI escape sequences
-    -h   print this message
-    -i   print match, mismatch, and gap counts for each alignment pair
-    -q   be quiet; don't print the optimal alignments (cancels the '-i' flag)
-    -s   print additional statistics about the alignment pairs
+    -f sequence-file
+         read the input strings from 'sequence-file' instead of standard input
+    -h   print this usage message
+    -l   list match, mismatch, and indel counts for each alignment pair
+    -p num-threads
+       parallelize the computation with 'num-threads' threads (must be >1)
+    -q   be quiet and don't print the aligned strings
+    -s   summarize the algorithm's run
     -t   print the scores table; only useful for shorter input strings
     -u   use unicode arrows when printing the scores table
-  $ ./needleman-wunsch GT GT 1 1 1
+
+  $ echo GT GT | ./needleman-wunsch 1 1 1
   GT
   GT
-  $ ./needleman-wunsch GT GA 1 1 1
+
+  $ echo GT GA | ./needleman-wunsch 1 1 1
   GT
   GA
-  $ ./needleman-wunsch GAT GTA 1 1 1
+
+  $ echo GAT GTA | ./needleman-wunsch 1 1 1
   G-AT
   GTA-
 
   GAT-
   G-TA
-  $ ./needleman-wunsch -s GAT GTA 1 1 1
+
+  $ echo GAT GTA | ./needleman-wunsch -s 1 1 1
   G-AT
   GTA-
 
@@ -90,7 +134,8 @@ EXAMPLE
 
   2 optimal alignments
   Optimal score is 0
-  $ ./needleman-wunsch -i GAT GTA 1 1 1
+
+  $ echo GAT GTA | ./needleman-wunsch -l 1 1 1
   G-AT
   GTA-
   2 matches, 0 mismatches, 2 gaps
@@ -98,14 +143,16 @@ EXAMPLE
   GAT-
   G-TA
   2 matches, 0 mismatches, 2 gaps
-  $ ./needleman-wunsch -q GCATGCU GATTACA 1 1 1
-  $ ./needleman-wunsch -q -s -t GCATGCU GATTACA 1 1 1
+
+  $ echo GCATGCU GATTACA | ./needleman-wunsch -q 1 1 1
+
+  $ echo GCATGCU GATTACA | ./needleman-wunsch -q -s -t 1 1 1
   3 optimal alignments
   Optimal score is 0
 
-  *     *     G     C     A     T     G     C     U
+  *     -     G     C     A     T     G     C     U
                                                    
-  *    +0  < -1  < -2  < -3  < -4  < -5  < -6  < -7
+  -    +0  < -1  < -2  < -3  < -4  < -5  < -6  < -7
         ^  \                       \               
   G    -1    +1  < +0  < -1  < -2  < -3  < -4  < -5
         ^     ^  \     \                           
@@ -120,3 +167,35 @@ EXAMPLE
   C    -6    -4    -2    -2    -1    -1    +1  < +0
         ^     ^     ^  \        ^  \  ^     ^  \   
   A    -7    -5    -3    -1  < -2    -2    +0    +0
+
+FUTURE WORK
+
+  * General cleanup of code style, comment style, and debug output.
+
+  * A common tool, "align," for Needleman-Wunsch, Smith-Waterman, and
+    Overlap (the three classic sequence alignment algorithms).  There
+    are lots of similarities between Needleman-Wunsch and the other two
+    classic sequence alignment algorithms.  Refactoring existing code and
+    making a common tool should be fairly straightforward.
+
+  * Affine gap functions, or at least support for different penalties
+    for gap openings and gap extensions, i.e. a d0 and an optional d1 as
+    operands.
+
+  * Parallel walking of the internal scores table.  On larger,
+    dissimilar inputs, reconstructing all optimal alignments is
+    incredibly slow.  Multiple threads could maintain separate state
+    tables for individual walks of the scores table starting at
+    different points.  Output stream sharing could be handled with a
+    semaphore.
+
+  * Automatic tuning of parallel portions.  On most platforms, the '-p'
+    options and a thread count shouldn't be necessary.  Using cachegrind
+    and/or other profiling tools we should be able to figure out an
+    equation for the optimal number of threads on a given machine with a
+    given clock speed, logical core count, and L1-LN cache sizes.
+
+  * Shrink the memory footprint in the scores table.  We currently use
+    integers where booleans would be more appropriate.  For even more
+    space, we could squeeze all the boolean flags as bits into a byte or
+    two and set/retrieve the values with bitwise operations.
