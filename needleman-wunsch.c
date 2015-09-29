@@ -156,27 +156,27 @@ print_aligned_strings_and_counts(char *X,
 void
 inc_solution_count(computation_t *C)
 {
-        if (num_threads > 1) {
-                pthread_rwlock_wrlock(&(C->solution_count_rwlock));
+        if (C->num_threads > 1) {
+                pthread_rwlock_wrlock(&C->solution_count_rwlock);
         }
 
         C->solution_count = C->solution_count + 1;
 
-        if (num_threads > 1) {
-                pthread_rwlock_unlock(&(C->solution_count_rwlock));
+        if (C->num_threads > 1) {
+                pthread_rwlock_unlock(&C->solution_count_rwlock);
         }
 }
 
 unsigned int
 get_solution_count(computation_t *C)
 {
-        if (num_threads > 1) {
+        if (C->num_threads > 1) {
                 pthread_rwlock_rdlock(&C->solution_count_rwlock);
         }
 
         unsigned int count = C->solution_count;
 
-        if (num_threads > 1) {
+        if (C->num_threads > 1) {
                 pthread_rwlock_unlock(&C->solution_count_rwlock);
         }
 
@@ -334,7 +334,6 @@ inc_branch_count(computation_t *C)
         }
 
         C->scores_table->branch_count = C->scores_table->branch_count + 1;
-        debug("Branch count is now %u
 
         if (C->num_threads > 1) {
                 pthread_rwlock_unlock(&C->scores_table->branch_count_rwlock);
@@ -388,7 +387,7 @@ process_cell(computation_t *C, int col, int row)
 
         int left_score = left_cell->score - C->indel_penalty;
 
-        if (num_threads > 1) {
+        if (C->num_threads > 1) {
                 /* We're done with the left score, so free the mutex */
                 pthread_mutex_unlock(&left_cell->score_mutex);
 
@@ -399,7 +398,7 @@ process_cell(computation_t *C, int col, int row)
         /* The current cell's score is the max of the three candidate scores */
         target_cell->score = max3(up_score, left_score, diag_score);
 
-        if (num_threads > 1) {
+        if (C->num_threads > 1) {
                 /* We've finalized the cell's score, so we mark it as
                  * processed for any waiting thread. */
                 target_cell->processed = 1;
@@ -475,7 +474,7 @@ process_column_set(void *args)
         /* Process all columns in the thread's column set */
         while (current_col < C->scores_table->M) {
                 process_column(C, current_col);
-                current_col = current_col + num_threads;
+                current_col = current_col + C->num_threads;
         }
 
         return NULL; /* FIXME: Return some value indicating success? */
@@ -488,7 +487,7 @@ compute_table_scores(computation_t *C)
         C->worker_threads = (pthread_t *)malloc(C->num_threads * sizeof(pthread_t));
         check(NULL != C->worker_threads, "malloc failed");
         struct process_col_set_args *args;
-        args = (struct process_col_set_args *)malloc(num_threads *
+        args = (struct process_col_set_args *)malloc(C->num_threads *
                                                      sizeof(struct process_col_set_args));
         check(NULL != args, "malloc failed");
 
