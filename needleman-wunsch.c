@@ -125,13 +125,13 @@ void
 inc_solution_count(computation_t *C)
 {
         if (num_threads > 1) {
-                pthread_rwlock_wrlock(&C->solution_count_rwlock);
+                pthread_rwlock_wrlock(&(C->solution_count_rwlock));
         }
 
         C->solution_count = C->solution_count + 1;
 
         if (num_threads > 1) {
-                pthread_rwlock_unlock(&C->solution_count_rwlock);
+                pthread_rwlock_unlock(&(C->solution_count_rwlock));
         }
 }
 
@@ -294,6 +294,21 @@ mark_optimal_path_in_table(computation_t *C)
         free(Y);
 }
 
+void
+inc_branch_count(table_t *T)
+{
+        if (num_threads > 1) {
+                pthread_rwlock_wrlock(&(T->branch_count_rwlock));
+        }
+
+        T->branch_count = T->branch_count + 1;
+        /* debug("%u branches so far\n", T->branch_count); */
+
+        if (num_threads > 1) {
+                pthread_rwlock_unlock(&(T->branch_count_rwlock));
+        }
+}
+
 static int
 max3(int a, int b, int c)
 {
@@ -330,12 +345,10 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
          */
 
         if (num_threads > 1) {
-                /* Lock current cell's score mutex and process the cell */
-                pthread_mutex_lock(&target_cell->score_mutex);
-
-                /* Wait for signal that left_cell is processed */
+                /* Wait for signal that left_cell is processed, then
+                   lock the left cell's score mutex. */
                 pthread_mutex_lock(&left_cell->score_mutex);
-                while (left_cell->processed == 0) {
+                while (left_cell->processed != 1) {
                         pthread_cond_wait(&left_cell->processed_cv,
                                           &left_cell->score_mutex);
                 }
@@ -344,17 +357,22 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
         int left_score = left_cell->score - d;
 
         if (num_threads > 1) {
+                /* We're done with the left score, so free the mutex */
                 pthread_mutex_unlock(&left_cell->score_mutex);
+
+                /* Lock current cell's score mutex and process the cell */
+                pthread_mutex_lock(&target_cell->score_mutex);
         }
 
         /* The current cell's score is the max of the three candidate scores */
         target_cell->score = max3(up_score, left_score, diag_score);
 
-        /* We've set the cell's score, so mark it as processed */
-        target_cell->processed = 1;
-
-        /* Signal the waiting thread and release the score mutex */
         if (num_threads > 1) {
+                /* We've finalized the cell's score, so we mark it as
+                 * processed for any waiting thread. */
+                target_cell->processed = 1;
+
+                /* Signal the waiting thread and release the score mutex */
                 pthread_cond_signal(&target_cell->processed_cv);
                 pthread_mutex_unlock(&target_cell->score_mutex);
         }
@@ -383,6 +401,12 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
                 target_cell->left_done = 0;
         } else {
                 target_cell->left_done = 1;
+        }
+
+        /* If we can branch here, i.e. multiple paths have the same
+           scores, note it. */
+        if (target_cell->diag + target_cell->up + target_cell->left > 1) {
+                inc_branch_count(T);
         }
 }
 
@@ -416,8 +440,8 @@ process_column_set(void *args)
 
         /* Process all columns in the thread's column set */
         while (current_col < C->scores_table->M) {
-                debug("Thread %d: Processing scores table column %d",
-                      A->start_col, current_col);
+                /* debug("Thread %d: Processing scores table column %d", */
+                      /* A->start_col, current_col); */
                 process_column(C->scores_table, current_col,
                                C->top_string, C->side_string,
                                C->match_score, C->mismatch_penalty,
@@ -464,9 +488,8 @@ compute_table_scores(computation_t *C)
         }
         debug("Joined %d worker thread%s", num_threads,
               (num_threads == 1 ? "" : "s"));
-
-
         free(worker_threads);
+        debug("%u branches in table\n", C->scores_table->branch_count);
 }
 
 /* Allocate and initialize a Needleman-Wunsch alignment computation */
@@ -503,7 +526,7 @@ init_computation(char *s1, char *s2, int m, int k, int d)
 
         /* Total number of solutions found */
         C->solution_count = 0;
-        int res = pthread_rwlock_init(&C->solution_count_rwlock, NULL);
+        int res = pthread_rwlock_init(&(C->solution_count_rwlock), NULL);
         check(0 == res, "pthread_rwlock_init failed");
 
         return C;
@@ -555,7 +578,8 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int d)
 
         /* Print table if tflag is set */
         if (tflag == 1) {
-                // extra newline to separate the output sections
+                /* Print an extra newline to separate the output
+                 * sections */
                 if (qflag != 1 || sflag == 1 || lflag == 1) {
                         printf("\n");
                 }
