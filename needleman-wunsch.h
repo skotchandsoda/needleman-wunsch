@@ -23,7 +23,7 @@ int tflag = 0;
 int uflag = 0;
 
 /*
- * Needleman-Wunsch computation instance definitions/globals
+ * Needleman-Wunsch computation instance definition
  */
 
 /* Instance of a Needleman-Wunsch alignment computation */
