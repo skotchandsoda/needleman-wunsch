@@ -1,5 +1,4 @@
-/* read-sequences.c - Read sequences from a stream into memory.
- *
+/*-
  * Copyright (c) 2015, Scott Cheloha.
  * All rights reserved.
  *
@@ -30,6 +29,8 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/* read-sequences.c - Read sequences from a stream into memory. */
 
 #include <ctype.h>
 #include <errno.h>
