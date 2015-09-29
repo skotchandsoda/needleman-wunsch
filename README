@@ -78,8 +78,8 @@ BUILDING
 
   needleman-wunsch is written in C99 and depends on pthreads.  Its
   makefile uses some GNU extensions to the POSIX standard.  So, to build
-  it on any recent Linux distribution or OS X, it should be sufficient
-  to just run make:
+  it on any recent Linux distribution or Mac OS X, it should be
+  sufficient to run make:
 
     $ make
 
@@ -171,6 +171,8 @@ EXAMPLES
 FUTURE WORK
 
   * General cleanup of code style, comment style, and debug output.
+
+  * A manual page.
 
   * A common tool, "align," for Needleman-Wunsch, Smith-Waterman, and
     Overlap (the three classic sequence alignment algorithms).  There
