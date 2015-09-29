@@ -21,6 +21,8 @@
 
 #define GAP_CHAR '-'
 
+#define NUM_OPERANDS 3
+
 /* ANSI terminal output formatting flag (defined in format.h) */
 extern int cflag;
 
@@ -649,8 +651,12 @@ main(int argc, char **argv)
         /* Set program name */
         set_prog_name(argv[0]);
 
-        /* Make sure we have enough operands */
-        if ((optind + 3) > argc) {
+        /* Make sure we have the right number of operands */
+        if (optind + NUM_OPERANDS != argc) {
+                log_err("expected %d operands; received %s %d", NUM_OPERANDS,
+                        (argc - optind > NUM_OPERANDS ||
+                         argc - optind == 0 ? "" : "only"),
+                        argc - optind);
                 usage();
         }
 
@@ -662,6 +668,7 @@ main(int argc, char **argv)
                 in = fopen(infile_path, "r");
                 check(NULL != in, "Failed to open %s", infile_path);
         }
+
         read_two_sequences_from_stream(&s1, &s2, in);
 
         /* Scoring values */
