@@ -43,9 +43,9 @@ options:\n\
   -f sequence-file\n\
        read the input strings from 'sequence-file' instead of standard input\n\
   -h   print this usage message\n\
-  -l   list match, mismatch, and gap counts after each alignment pair\n\
+  -l   list match, mismatch, and indel counts for each alignment pair\n\
   -p num-threads\n\
-       parallelize the computation with 'num_threads' threads (must be >1)\n\
+       parallelize the computation with 'num-threads' threads (must be >1)\n\
   -q   be quiet and don't print the aligned strings\n\
   -s   summarize the algorithm's run\n\
   -t   print the scores table; only useful for shorter input strings\n\
@@ -151,13 +151,13 @@ get_solution_count(computation_t *C)
         return count;
 }
 
-/* Do the walk iteratively because we'll overrun the stack with new frames
-   on a sufficiently large input.  Yes, it is ugly, but it is necessary
-   if we want to handle arbitrarily large inputs. */
+/* Do the walk iteratively because we'll overrun the stack on a
+   sufficiently large input.  Yes, it is ugly, but it is necessary if we
+   want to handle arbitrarily large inputs. */
 void
 walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
 {
-        // We move through the table starting at the bottom-right corner
+        /* We move through the table starting at the bottom-right corner */
         table_t *T = C->scores_table;
         int i = T->M - 1;  // position (x direction)
         int j = T->N - 1;  // position (y direction)
@@ -173,14 +173,14 @@ walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
                  1 == T->cells[i][j].diag_done &&
                  1 == T->cells[i][j].left_done)) {
 
-                // We've visited the cell, so mark it as part of the
-                // optimal path
+                /* We've visited the cell, so mark it as part of the
+                   optimal path */
                 if (tflag == 1) {
                         T->cells[i][j].in_optimal_path = 1;
                 }
 
-                // Special Case: We've reached the top-left corner of the table.
-                //               Print the current solution.
+                /* Special Case: We've reached the top-left corner of
+                   the table.  Print the current solution. */
                 if (i == 0 && j == 0) {
                         if (qflag != 1 || lflag == 1) {
                                 print_aligned_strings_and_counts(X, Y, n-1,
@@ -189,7 +189,8 @@ walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
                         inc_solution_count(C);
                 }
 
-                // Base Case: Done in current cell.  Return to source cell.
+                /* Base Case: Done in current cell.  Return to source
+                 * cell. */
                 if (T->cells[i][j].up_done &&
                     T->cells[i][j].diag_done &&
                     T->cells[i][j].left_done) {
@@ -223,8 +224,8 @@ walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
                            equivalent solution in a later pass */
                         n = n - 1;
                 }
-                // Recursive Case: Not done in current cell.  Do stuff in
-                //                 adjacent (up/diag/left) cells.
+                /* Recursive Case: Not done in current cell.  Do stuff
+                   in adjacent (up/diag/left) cells. */
                 else {
                         if (1 == T->cells[i][j].diag &&
                             0 == T->cells[i][j].diag_done) {
@@ -269,30 +270,23 @@ mark_optimal_path_in_table(computation_t *C)
         char *X;
         char *Y;
 
-        // Allocate buffers for printing the
-        // optimally aligned strings.  In the worst case they will be
-        // M+N characters long.
+        /* Allocate buffers for printing the optimally aligned strings.  In the
+           worst case they will need to be M+N characters long. */
         max_aligned_strlen = C->scores_table->M + C->scores_table->N;
         X = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
-        if (X == NULL) {
-                perror("malloc failed");
-                exit(1);
-        }
+        check(NULL != X, "malloc failed");
         Y = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
-        if (Y == NULL) {
-                perror("malloc failed");
-                exit(1);
-        }
+        check(NULL != Y, "malloc failed");
 
         debug("Allocated temporary solution printing strings X and Y.");
 
-        // We move through the table starting at the bottom-right corner
+        /* We walk through the table starting at the bottom-right-hand corner */
         int i = C->scores_table->M - 1;  // position (x direction)
         int j = C->scores_table->N - 1;  // position (y direction)
 
-        // Walk the table starting at the bottom-right corner recursively,
-        // marking cells in the optimal path and counting the total possible
-        // optimal solutions (alignments)
+        /* Walk the table starting at the bottom-right corner, marking cells in
+           the optimal path and counting the total possible optimal solutions
+           (alignments) */
         walk_table(C, X, Y, i, j);
 
         // Clean up buffers
@@ -312,15 +306,15 @@ max3(int a, int b, int c)
 void
 process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int d)
 {
-        // Cell we want to compute the score for
+        /* Cell we want to compute the score for */
         cell_t *target_cell = &T->cells[col][row];
 
-        // Cells we'll use to compute target_cell's score
+        /* Cells we'll use to compute target_cell's score */
         cell_t *up_cell   = &T->cells[col][row-1];
         cell_t *diag_cell = &T->cells[col-1][row-1];
         cell_t *left_cell = &T->cells[col-1][row];
 
-        // Candidate scores
+        /* Candidate scores */
         int up_score = up_cell->score - d;
         int diag_score = 0;
         if (s1[col-1] == s2[row-1]) {
@@ -353,7 +347,7 @@ process_cell(table_t *T, int col, int row, char *s1, char *s2, int m, int k, int
                 pthread_mutex_unlock(&left_cell->score_mutex);
         }
 
-        // The current cell's score is the max of the three candidate scores
+        /* The current cell's score is the max of the three candidate scores */
         target_cell->score = max3(up_score, left_score, diag_score);
 
         /* We've set the cell's score, so mark it as processed */
@@ -413,7 +407,9 @@ process_column(table_t *T, int col, char *s1, char *s2, int m, int k, int d)
 void *
 process_column_set(void *args)
 {
-        /* Unpack arguments */
+        /* Unpack arguments.  We pass them in a struct because pthreads
+           only lets us pass a block of memory as argument to the
+           initial function */
         struct process_col_set_args *A = (struct process_col_set_args *)args;
         int current_col = A->start_col;
         computation_t *C = A->C;
@@ -505,7 +501,7 @@ init_computation(char *s1, char *s2, int m, int k, int d)
         C->mismatch_penalty = k;
         C->indel_penalty = d;
 
-        /* Total number of solutions founds */
+        /* Total number of solutions found */
         C->solution_count = 0;
         int res = pthread_rwlock_init(&C->solution_count_rwlock, NULL);
         check(0 == res, "pthread_rwlock_init failed");
