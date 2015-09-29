@@ -36,18 +36,20 @@ typedef struct table {
         int N;
         cell_t **cells;
         int greatest_abs_val;
+        unsigned int branch_count;
+        pthread_rwlock_t branch_count_rwlock;
 } table_t;
 
-// Allocate a MxN table of cells
+/* Allocate a MxN table of cells */
 table_t *alloc_table(int M, int N);
 
-// Destroy a table of M cell_t pointers
+/* Destroy a table of M cell_t pointers */
 void free_table(table_t *T, int multiple_threads);
 
-// Initialize the score table
+/* Initialize the score table */
 void init_table(table_t *T, int d, int multiple_threads, int print_table);
 
-// Print the score table
+/* Print the score table */
 void print_table(table_t *T, char *s1, char *s2, int unicode);
 
 #endif /* __TABLE_H__ */
