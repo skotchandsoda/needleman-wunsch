@@ -52,7 +52,7 @@ free_table(table_t *T, int multiple_threads)
                                 res = pthread_mutex_destroy(&T->cells[i][j].score_mutex);
                                 check(0 == res, "pthread_mutex_destroy failed");
                                 res = pthread_cond_destroy(&T->cells[i][j].processed_cv);
-                                check(0 == res, "pthread_cond_destroy");
+                                check(0 == res, "pthread_cond_destroy failed");
                         }
                 }
         }
@@ -90,8 +90,8 @@ init_table(table_t *T, int d, int multiple_threads, int print_table)
                 T->greatest_abs_val = 0;
         }
 
-        // Initialize the table
-        // 0,0 has score 0 and has no optimal direction
+        /* Initialize the table.  0,0 has score 0 and has no optimal
+           direction */
         T->cells[0][0].score = 0;
         T->cells[0][0].processed = 1;
         T->cells[0][0].up_done = 1;
@@ -100,7 +100,7 @@ init_table(table_t *T, int d, int multiple_threads, int print_table)
 
         // Rest of top row has score i * (-d) and LEFT direction
         for (int i = 1; i < T->M; i++) {
-                T->cells[i][0].score = (-i) * d;
+                T->cells[i][0].score = i * (-d);
                 T->cells[i][0].left = 1;
                 T->cells[i][0].up_done = 1;
                 T->cells[i][0].diag_done = 1;
@@ -109,12 +109,15 @@ init_table(table_t *T, int d, int multiple_threads, int print_table)
 
         // Rest of leftmost (side) column has score j * (-d) and UP direction
         for (int j = 1; j < T->N; j++) {
-                T->cells[0][j].score = (-j) * d;
+                T->cells[0][j].score = j * (-d);
                 T->cells[0][j].up = 1;
                 T->cells[0][j].left_done = 1;
                 T->cells[0][j].diag_done = 1;
                 T->cells[0][j].processed = 1;
         }
+
+        res = pthread_rwlock_init(&(T->branch_count_rwlock), NULL);
+        check(0 == res, "pthread_rwlock_init failed");
 }
 
 
