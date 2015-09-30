@@ -43,16 +43,34 @@
 
 /* Instance of a Needleman-Wunsch alignment computation */
 typedef struct computation {
+        /* Sequences to align */
         char *top_string;
         char *side_string;
+
+        /* Scoring parameters */
         int match_score;
         int mismatch_penalty;
         int indel_penalty;
+
+        /* Score table */
         score_table_t *score_table;
+
+        /* The walk_table maintains state during alignment
+         * reconstruction */
         walk_table_t *walk_table;
+
+        /* We track the solution count for summarization purposes as
+         * well as for profiling the performance of our alignment
+         * reconstruction routine(s). */
         unsigned int solution_count;
         pthread_rwlock_t solution_count_rwlock;
+
+        /* Number of threads to execute in parallel when writing scores
+         * to score_table (defined above). */
         unsigned int num_threads;
+
+        /* A store for pointers to each of the worker threads we execute
+         * in parallel when writing scores to score_table. */
         pthread_t *worker_threads;
 } computation_t;
 
@@ -80,5 +98,7 @@ void free_computation(computation_t *C);
 void inc_solution_count(computation_t *C);
 
 unsigned int get_solution_count(computation_t *C);
+
+void print_summary(computation_t *C);
 
 #endif /* __COMPUTATION_H__ */

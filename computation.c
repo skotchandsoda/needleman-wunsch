@@ -230,3 +230,22 @@ get_solution_count(computation_t *C)
         return count;
 }
 
+/*
+ * print_summary()
+ *
+ *   Print details about the algorithm's run.  In particular, print the
+ *   number of optimal alignments and the optimal alignment score.
+ *
+ *   C - computation instance to summarize
+ */
+void
+print_summary(computation_t *C)
+{
+        unsigned int soln_count = get_solution_count(C);
+        int max_col = C->score_table->M - 1;
+        int max_row = C->score_table->N - 1;
+        printf("%d optimal alignment%s\n",
+               soln_count, (soln_count > 1 ? "s" : ""));
+        printf("Optimal score is %-d\n",
+               C->score_table->cells[max_col][max_row].score);
+}
