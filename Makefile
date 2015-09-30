@@ -30,8 +30,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PROG = needleman-wunsch
-SRC = needleman-wunsch.c score-table.c walk-table.c format.c dbg.c read-sequences.c computation.c
-INC = needleman-wunsch.h score-table.h walk-table.h format.h dbg.h read-sequences.h computation.h
+SRC = needleman-wunsch.c score-table.c walk-table.c format.c \
+      dbg.c read-sequences.c computation.c
+INC = $(SRC:.c=.h)
 OBJ = ${SRC:.c=.o}
 CFLAGS = -g -O3
 LIB = -lpthread
