@@ -31,22 +31,22 @@
  */
 
 /*
- * table.h - Definition for scores table and scores table cell of
- *           Needleman-Wunsch alignment computation.  Also contains
- *           prototypes for functions implemented in table.c.
+ * walk-table.h - Definition of walk table and walk table cell of
+ *                Needleman-Wunsch alignment reconstruction.  Contains
+ *                prototypes for functions implemented in walk_table.c.
  */
 
-#ifndef __TABLE_H__
-#define __TABLE_H__
+#ifndef __WALK_TABLE_H__
+#define __WALK_TABLE_H__
 
 #include <pthread.h>
 
-/* arrow_t: A type describing directions in the scores table. */
+/* arrow_t: Directions in a walk_table_t. */
 typedef enum {left, up, diag} arrow_t;
 
-/* cell_t: A type describing a cell in the scores table. */
-typedef struct cell {
-        int score;
+/* cell_t: Cell in a walk_table_t. */
+typedef struct walk_table_cell {
+        /* int score; */
         int diag;
         int left;
         int up;
@@ -54,34 +54,32 @@ typedef struct cell {
         int left_done;
         int up_done;
         arrow_t src_direction;
-        int match;
+        /* int match; */
         int in_optimal_path;
-        int processed;
-        pthread_mutex_t score_mutex;
-        pthread_cond_t processed_cv;
-} cell_t;
+        /* int processed; */
+        /* pthread_mutex_t score_mutex; */
+        /* pthread_cond_t processed_cv; */
+} walk_table_cell_t;
 
-/* table_t: A type describing an MxN table of cells (i.e. matrix of
- *          cell_t). */
-typedef struct table {
+/* walk_table_t: An MxN table of walk_table_cells (i.e. matrix of
+ *               walk_table_cell_t). */
+typedef struct walk_table {
         int M;
         int N;
-        cell_t **cells;
-        int greatest_abs_val;
+        walk_table_cell_t **cells;
+        /* int greatest_abs_val; */
         unsigned int branch_count;
         pthread_rwlock_t branch_count_rwlock;
-} table_t;
+} walk_table_t;
 
-/* Allocate a MxN table of cells */
-table_t *alloc_table(int M, int N);
+/*
+ * Prototypes
+ */
 
-/* Destroy a table of M cell_t pointers */
-void free_table(table_t *T, int multiple_threads);
+walk_table_t *alloc_walk_table(int M, int N);
 
-/* Initialize the score table */
-void init_table(table_t *T, int d, int multiple_threads);
+void free_walk_table(walk_table_t *W, unsigned int nthreads);
 
-/* Print the score table */
-void print_table(table_t *T, char *s1, char *s2, int unicode);
+void inc_branch_count(walk_table_t *W, unsigned int nthreads);
 
-#endif /* __TABLE_H__ */
+#endif /* __WALK_TABLE_H__ */

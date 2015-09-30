@@ -30,7 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* 
+/*
  * needleman-wunsch.h - Global flags for the needleman-wunsch program
  *                      and struct definitions for initial functions
  *                      used in parallel.
@@ -41,7 +41,8 @@
 
 #include <pthread.h>
 
-#include "table.h"
+#include "score-table.h"
+
 
 /*
  * Global flags affecting program logic

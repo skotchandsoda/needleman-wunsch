@@ -38,7 +38,8 @@
 #ifndef __COMPUTATION_H__
 #define __COMPUTATION_H__
 
-#include "table.h"
+#include "score-table.h"
+#include "walk-table.h"
 
 /* Instance of a Needleman-Wunsch alignment computation */
 typedef struct computation {
@@ -47,10 +48,11 @@ typedef struct computation {
         int match_score;
         int mismatch_penalty;
         int indel_penalty;
-        table_t *scores_table;
+        score_table_t *score_table;
+        walk_table_t *walk_table;
         unsigned int solution_count;
         pthread_rwlock_t solution_count_rwlock;
-        int num_threads;
+        unsigned int num_threads;
         pthread_t *worker_threads;
 } computation_t;
 
@@ -60,14 +62,23 @@ typedef struct computation {
 
 computation_t *alloc_computation();
 
+void init_computation_tables(score_table_t *S,
+                             walk_table_t *W,
+                             int d,
+                             unsigned int nthreads);
+
 computation_t *init_computation(computation_t *C,
                                 char *s1,
                                 char *s2,
                                 int m,
                                 int k,
                                 int d,
-                                int num_threads);
+                                unsigned int nthreads);
 
 void free_computation(computation_t *C);
+
+void inc_solution_count(computation_t *C);
+
+unsigned int get_solution_count(computation_t *C);
 
 #endif /* __COMPUTATION_H__ */

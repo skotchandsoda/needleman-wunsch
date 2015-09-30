@@ -48,7 +48,8 @@
 #include "format.h"
 #include "needleman-wunsch.h"
 #include "read-sequences.h"
-#include "table.h"
+#include "score-table.h"
+#include "walk-table.h"
 
 #define GAP_CHAR '-'
 
@@ -154,61 +155,37 @@ print_aligned_strings_and_counts(char *X,
 }
 
 void
-inc_solution_count(computation_t *C)
+construct_alignments(computation_t *C,
+                     char *X,
+                     char *Y,
+                     int start_i,
+                     int start_j,
+                     int start_n)
 {
-        if (C->num_threads > 1) {
-                pthread_rwlock_wrlock(&C->solution_count_rwlock);
-        }
+        /* We move through the walk table starting at the bottom-right
+         * corner */
+        walk_table_t *W = C->walk_table;
+        int i = start_i;  /* position (x direction) */
+        int j = start_j;  /* position (y direction) */
+        int n = start_n;  /* character count */
 
-        C->solution_count = C->solution_count + 1;
+        debug("Starting alignment construction.");
 
-        if (C->num_threads > 1) {
-                pthread_rwlock_unlock(&C->solution_count_rwlock);
-        }
-}
-
-unsigned int
-get_solution_count(computation_t *C)
-{
-        if (C->num_threads > 1) {
-                pthread_rwlock_rdlock(&C->solution_count_rwlock);
-        }
-
-        unsigned int count = C->solution_count;
-
-        if (C->num_threads > 1) {
-                pthread_rwlock_unlock(&C->solution_count_rwlock);
-        }
-
-        return count;
-}
-
-/* Do the walk iteratively because we'll overrun the stack on a
-   sufficiently large input.  Yes, it is ugly, but it is necessary if we
-   want to handle arbitrarily large inputs. */
-void
-walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
-{
-        /* We move through the table starting at the bottom-right corner */
-        table_t *T = C->scores_table;
-        int i = T->M - 1;  // position (x direction)
-        int j = T->N - 1;  // position (y direction)
-        int n = 0;         // character count
-
-        int rightmost_col = i;
-        int bottommost_row = j;
-
-        debug("Starting scores table walk.");
-        while (!(i == rightmost_col &&
-                 j == bottommost_row &&
-                 1 == T->cells[i][j].up_done &&
-                 1 == T->cells[i][j].diag_done &&
-                 1 == T->cells[i][j].left_done)) {
+        /*
+         * We do the walk iteratively because we'll overrun the stack on
+         * a sufficiently large input.  Yes, it is ugly, but it is
+         * necessary if we want to handle arbitrarily large inputs.
+         */
+        while (!(i == start_i &&
+                 j == start_j &&
+                 1 == W->cells[i][j].up_done &&
+                 1 == W->cells[i][j].diag_done &&
+                 1 == W->cells[i][j].left_done)) {
 
                 /* We've visited the cell, so mark it as part of the
                    optimal path */
                 if (tflag == 1) {
-                        T->cells[i][j].in_optimal_path = 1;
+                        W->cells[i][j].in_optimal_path = 1;
                 }
 
                 /* Special Case: We've reached the top-left corner of
@@ -223,31 +200,31 @@ walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
 
                 /* Base Case: Done in current cell.  Return to source
                  * cell. */
-                if (T->cells[i][j].up_done &&
-                    T->cells[i][j].diag_done &&
-                    T->cells[i][j].left_done) {
+                if (W->cells[i][j].up_done &&
+                    W->cells[i][j].diag_done &&
+                    W->cells[i][j].left_done) {
                         /* Mark all possible paths as "not done" for
                            future visits */
-                        T->cells[i][j].up_done = (T->cells[i][j].up ? 0 : 1);
-                        T->cells[i][j].diag_done = (T->cells[i][j].diag ? 0 : 1);
-                        T->cells[i][j].left_done = (T->cells[i][j].left ? 0 : 1);
+                        W->cells[i][j].up_done   = (W->cells[i][j].up ? 0 : 1);
+                        W->cells[i][j].diag_done = (W->cells[i][j].diag ? 0 : 1);
+                        W->cells[i][j].left_done = (W->cells[i][j].left ? 0 : 1);
 
                         /* Change i and j so we are "back in the source
                            cell."  Mark the source cell's relevant
                            direction "done" */
-                        switch(T->cells[i][j].src_direction) {
+                        switch(W->cells[i][j].src_direction) {
                         case up:
                                 j = j + 1;
-                                T->cells[i][j].up_done = 1;
+                                W->cells[i][j].up_done = 1;
                                 break;
                         case left:
                                 i = i + 1;
-                                T->cells[i][j].left_done = 1;
+                                W->cells[i][j].left_done = 1;
                                 break;
                         case diag:
                                 i = i + 1;
                                 j = j + 1;
-                                T->cells[i][j].diag_done = 1;
+                                W->cells[i][j].diag_done = 1;
                                 break;
                         default:
                                 unreachable();
@@ -259,32 +236,32 @@ walk_table(computation_t *C, char *X, char *Y, int start_i, int start_j)
                 /* Recursive Case: Not done in current cell.  Do stuff
                    in adjacent (up/diag/left) cells. */
                 else {
-                        if (1 == T->cells[i][j].diag &&
-                            0 == T->cells[i][j].diag_done) {
+                        if (1 == W->cells[i][j].diag &&
+                            0 == W->cells[i][j].diag_done) {
                                 X[n] = C->top_string[i-1];
                                 Y[n] = C->side_string[j-1];
-                                i = i-1;
-                                j = j-1;
-                                T->cells[i][j].src_direction = diag;
-                        } else if (1 == T->cells[i][j].left &&
-                                   0 == T->cells[i][j].left_done) {
+                                i = i - 1;
+                                j = j - 1;
+                                W->cells[i][j].src_direction = diag;
+                        } else if (1 == W->cells[i][j].left &&
+                                   0 == W->cells[i][j].left_done) {
                                 X[n] = C->top_string[i-1];
                                 Y[n] = '-';
-                                i = i-1;
-                                T->cells[i][j].src_direction = left;
-                        } else if (1 == C->scores_table->cells[i][j].up &&
-                                   0 == T->cells[i][j].up_done) {
+                                i = i - 1;
+                                W->cells[i][j].src_direction = left;
+                        } else if (1 == W->cells[i][j].up &&
+                                   0 == W->cells[i][j].up_done) {
                                 X[n] = '-';
                                 Y[n] = C->side_string[j-1];
-                                j = j-1;
-                                T->cells[i][j].src_direction = up;
+                                j = j - 1;
+                                W->cells[i][j].src_direction = up;
                         }
 
-                        n = n+1;
+                        n = n + 1;
                 }
         }
 
-        debug("Finished scores table walk.");
+        debug("Finished alignment construction.");
 }
 
 struct walk_table_args {
@@ -304,40 +281,28 @@ mark_optimal_path_in_table(computation_t *C)
 
         /* Allocate buffers for printing the optimally aligned strings.  In the
            worst case they will need to be M+N characters long. */
-        max_aligned_strlen = C->scores_table->M + C->scores_table->N;
+        max_aligned_strlen = C->score_table->M + C->score_table->N;
+
+        debug("Allocated temporary solution printing strings X and Y.");
+
         X = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
         check(NULL != X, "malloc failed");
         Y = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
         check(NULL != Y, "malloc failed");
 
-        debug("Allocated temporary solution printing strings X and Y.");
-
         /* We walk through the table starting at the bottom-right-hand corner */
-        int i = C->scores_table->M - 1;  // position (x direction)
-        int j = C->scores_table->N - 1;  // position (y direction)
+        int i = C->score_table->M - 1;  /* starting column */
+        int j = C->score_table->N - 1;  /* starting row */
+        int n = 0;                      /* starting character count */
 
         /* Walk the table starting at the bottom-right corner, marking cells in
            the optimal path and counting the total possible optimal solutions
            (alignments) */
-        walk_table(C, X, Y, i, j);
+        construct_alignments(C, X, Y, i, j, n);
 
         /* Clean up buffers */
         free(X);
         free(Y);
-}
-
-void
-inc_branch_count(computation_t *C)
-{
-        if (C->num_threads > 1) {
-                pthread_rwlock_wrlock(&C->scores_table->branch_count_rwlock);
-        }
-
-        C->scores_table->branch_count = C->scores_table->branch_count + 1;
-
-        if (C->num_threads > 1) {
-                pthread_rwlock_unlock(&C->scores_table->branch_count_rwlock);
-        }
 }
 
 static int
@@ -353,12 +318,12 @@ void
 process_cell(computation_t *C, int col, int row)
 {
         /* Cell we want to compute the score for */
-        cell_t *target_cell = &C->scores_table->cells[col][row];
+        score_table_cell_t *target_cell = &C->score_table->cells[col][row];
 
         /* Cells we'll use to compute target_cell's score */
-        cell_t *up_cell   = &C->scores_table->cells[col][row-1];
-        cell_t *diag_cell = &C->scores_table->cells[col-1][row-1];
-        cell_t *left_cell = &C->scores_table->cells[col-1][row];
+        score_table_cell_t *up_cell   = &C->score_table->cells[col][row-1];
+        score_table_cell_t *diag_cell = &C->score_table->cells[col-1][row-1];
+        score_table_cell_t *left_cell = &C->score_table->cells[col-1][row];
 
         /* Candidate scores */
         int up_score = up_cell->score - C->indel_penalty;
@@ -379,7 +344,7 @@ process_cell(computation_t *C, int col, int row)
                 /* Wait for signal that left_cell is processed, then
                    lock the left cell's score mutex. */
                 pthread_mutex_lock(&left_cell->score_mutex);
-                while (left_cell->processed != 1) {
+                while (1 != left_cell->processed) {
                         pthread_cond_wait(&left_cell->processed_cv,
                                           &left_cell->score_mutex);
                 }
@@ -412,51 +377,55 @@ process_cell(computation_t *C, int col, int row)
          * END CRITICAL SECTIONS
          */
 
-        /* Mark the optimal paths.  Provided that a path's score is
-           equal to the target cell's score, i.e. the maximum of the
-           three candidate scores, it is an optimal path. */
+        /* Mark the optimal paths in the walk table.  Provided that a
+           path's score is equal to the target cell's score, i.e. the
+           maximum of the three candidate scores, it is an optimal
+           path. */
+        walk_table_cell_t *target_walk_cell = &C->walk_table->cells[col][row];
         if (target_cell->score == diag_score) {
-                target_cell->diag = 1;
-                target_cell->diag_done = 0;
+                target_walk_cell->diag = 1;
+                target_walk_cell->diag_done = 0;
         } else {
-                target_cell->diag_done = 1;
+                target_walk_cell->diag_done = 1;
         }
         if (target_cell->score == up_score) {
-                target_cell->up = 1;
-                target_cell->up_done = 0;
+                target_walk_cell->up = 1;
+                target_walk_cell->up_done = 0;
         } else {
-                target_cell->up_done = 1;
+                target_walk_cell->up_done = 1;
         }
         if (target_cell->score == left_score) {
-                target_cell->left = 1;
-                target_cell->left_done = 0;
+                target_walk_cell->left = 1;
+                target_walk_cell->left_done = 0;
         } else {
-                target_cell->left_done = 1;
+                target_walk_cell->left_done = 1;
         }
 
         /* If we can branch here, i.e. multiple paths have the same
            scores, note it. */
-        if (target_cell->diag + target_cell->up + target_cell->left > 1) {
-                inc_branch_count(C);
+        if (target_walk_cell->diag + target_walk_cell->up + target_walk_cell->left > 1) {
+                inc_branch_count(C->walk_table, C->num_threads);
         }
 }
 
 void
 process_column(computation_t *C, int col)
 {
-        table_t *T = C->scores_table;
+        score_table_t *S = C->score_table;
 
         /* Compute the score for each cell in the column */
-        for (int row = 1; row < C->scores_table->N; row++) {
-                // Compute the cell's score
+        for (int row = 1; row < C->score_table->N; row++) {
+                /* Compute the cell's score */
                 process_cell(C, col, row);
 
-                // If we're printing the table and the absolute value of
-                // the current cell's score is greater than the one
-                // marked in the table, update the largest value
-                int current_abs_score = abs(T->cells[col][row].score);
-                if (tflag == 1 && current_abs_score > T->greatest_abs_val) {
-                        T->greatest_abs_val = current_abs_score;
+                /*
+                 * If we're printing the table and the absolute value of
+                 * the current cell's score is greater than the one
+                 * marked in the table, update the largest value.
+                 */
+                int current_abs_score = abs(S->cells[col][row].score);
+                if (tflag == 1 && current_abs_score > S->greatest_abs_val) {
+                        S->greatest_abs_val = current_abs_score;
                 }
         }
 }
@@ -472,7 +441,7 @@ process_column_set(void *args)
         computation_t *C = A->C;
 
         /* Process all columns in the thread's column set */
-        while (current_col < C->scores_table->M) {
+        while (current_col < C->score_table->M) {
                 process_column(C, current_col);
                 current_col = current_col + C->num_threads;
         }
@@ -517,7 +486,7 @@ compute_table_scores(computation_t *C)
         debug("Joined %d worker thread%s", C->num_threads,
               (C->num_threads == 1 ? "" : "s"));
         free(C->worker_threads);
-        debug("%u branches in table\n", C->scores_table->branch_count);
+        debug("%u branches in walk table\n", C->walk_table->branch_count);
 }
 
 
@@ -528,12 +497,12 @@ void
 print_summary(computation_t *C)
 {
         unsigned int soln_count = get_solution_count(C);
-        int max_col = C->scores_table->M - 1;
-        int max_row = C->scores_table->N - 1;
+        int max_col = C->score_table->M - 1;
+        int max_row = C->score_table->N - 1;
         printf("%d optimal alignment%s\n",
                soln_count, (soln_count > 1 ? "s" : ""));
         printf("Optimal score is %-d\n",
-               C->scores_table->cells[max_col][max_row].score);
+               C->score_table->cells[max_col][max_row].score);
 }
 
 void
@@ -565,7 +534,8 @@ needleman_wunsch(char *s1, char *s2, int m, int k, int d, int num_threads)
                 if (qflag != 1 || sflag == 1 || lflag == 1) {
                         printf("\n");
                 }
-                print_table(C->scores_table, C->top_string, C->side_string, uflag);
+                print_table(C->score_table, C->walk_table,
+                            C->top_string, C->side_string, uflag);
         }
 
         /* Clean up */
