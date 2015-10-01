@@ -76,16 +76,20 @@ DESCRIPTION
 
 BUILDING
 
-  needleman-wunsch is written in C99 and depends on pthreads.  Its
-  makefile uses some GNU extensions to the POSIX standard.  So, to build
-  it on any recent Linux distribution or Mac OS X, it should be
-  sufficient to just run make:
+  needleman-wunsch is written in C99 with GNU extensions and depends on
+  pthreads.  Its makefile uses GNU extensions.  So, to build it on any
+  recent Linux distribution or Mac OS X, it should be sufficient to just
+  run make:
 
     $ make
 
   On BSD or another POSIX platform, you may need to specify GNU make:
 
     $ gmake
+
+  To build with debug output, make the debug target:
+
+    $ make debug
 
 EXAMPLES
 
