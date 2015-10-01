@@ -47,6 +47,7 @@
 #include "dbg.h"
 #include "format.h"
 #include "needleman-wunsch.h"
+#include "print-table.h"
 #include "read-sequences.h"
 #include "score-table.h"
 #include "walk-table.h"
@@ -751,7 +752,7 @@ int main(int argc, char **argv)
 
         /* Make sure we have the right number of operands */
         if (optind + NUM_OPERANDS != argc) {
-                log_err("expected %d operands; received %s %d", NUM_OPERANDS,
+                log_err("expected %d operands but received %s %d", NUM_OPERANDS,
                         (argc - optind > NUM_OPERANDS ||
                          argc - optind == 0 ? "" : "only"),
                         argc - optind);
@@ -764,7 +765,7 @@ int main(int argc, char **argv)
                 in = stdin;
         } else {
                 in = fopen(infile_path, "r");
-                check(NULL != in, "Failed to open %s", infile_path);
+                check(NULL != in, "failed to open %s", infile_path);
         }
 
         read_two_sequences_from_stream(&s1, &s2, in);
