@@ -73,7 +73,7 @@ void set_prog_name(char *name);
 #define log_err(M, ...)                                                 \
         fprintf(stderr,                                                 \
                 "%s: error: %s:%d: " M ": %s\n",                        \
-                prog, __FILE__,__LINE__, ##__VA_ARGS__, clean_errno())
+                prog, __FILE__, __LINE__, ##__VA_ARGS__, clean_errno())
 #endif
 
 #ifdef NDEBUG
@@ -103,16 +103,7 @@ void set_prog_name(char *name);
                 log_err(M, ##__VA_ARGS__);      \
                 exit(1);
 
-#define unreachable(M, ...)                                     \
+#define unreachable()                                           \
         sentinel("unreachable code executed; giving up")
-
-#define check_mem(A) check((A), "Out of memory.")
-
-#define check_debug(A, M, ...)                  \
-        if(!(A)) {                              \
-                debug(M, ##__VA_ARGS__);        \
-                errno=0;                        \
-                goto error;                     \
-        }
 
 #endif /* __dbg_h__ */
