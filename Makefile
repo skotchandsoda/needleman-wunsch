@@ -30,11 +30,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PROG = needleman-wunsch
-SRC = needleman-wunsch.c score-table.c walk-table.c format.c \
-      dbg.c read-sequences.c computation.c
+SRC = needleman-wunsch.c score-table.c walk-table.c print-table.c \
+      format.c dbg.c read-sequences.c computation.c
 INC = $(SRC:.c=.h)
 OBJ = ${SRC:.c=.o}
-CFLAGS = -g -O3
+CFLAGS = -O3
 LIB = -lpthread
 
 .SUFFIXES:
@@ -43,7 +43,11 @@ LIB = -lpthread
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
+all: CFLAGS += -DNDEBUG
 all: $(PROG)
+
+debug: CFLAGS += -g
+debug: $(PROG)
 
 $(PROG): $(OBJ)
 	$(CC) -o $@ $(OBJ) $(LIB)
