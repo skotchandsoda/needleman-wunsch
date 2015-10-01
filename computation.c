@@ -43,8 +43,10 @@
 
 /*
  * alloc_computation()
- * -------------------
- * Allocate a Needleman-Wunsch alignment computation.
+ *
+ *   Allocate a Needleman-Wunsch alignment computation.
+ *
+ *   return - Allocated computation_t pointer
  */
 computation_t *
 alloc_computation()
@@ -57,15 +59,18 @@ alloc_computation()
 
 /*
  * init_computation_tables()
- * -------------------------
- * Initialize the scores table and the reference walk table for a
- * Needleman-Wunsch alignment computation.
  *
- * S: scores table to initialize
- * W: walk table to initialize
- * d: indel penalty (used to initialize the top-most row and left-most
- *    column with seed values for the scoring run
- * nthreads: number of threads we're using for this computation
+ *   Initialize the scores table and the reference walk table for a
+ *   Needleman-Wunsch alignment computation.
+ *
+ *   S - scores table to initialize
+ *
+ *   W - walk table to initialize
+ *
+ *   d - indel penalty (used to initialize the top-most row and left-most
+ *       column with seed values for the scoring run
+ *
+ *   nthreads - number of threads we're using for this computation
  */
 void
 init_computation_tables(score_table_t *S, walk_table_t *W, int d, unsigned int nthreads)
@@ -120,15 +125,22 @@ init_computation_tables(score_table_t *S, walk_table_t *W, int d, unsigned int n
 }
 
 /* init_computation()
- * ------------------
- * Allocate and initialize a Needleman-Wunsch alignment computation.
  *
- * C:  computational instance to initialize
- * s1: top string, i.e. the string we are aligning against
- * s2: side string, i.e. the string we align against s1
- * m:  match bonus
- * k:  mismatch penalty
- * d:  indel, i.e. gap, penalty
+ *   Allocate and initialize a Needleman-Wunsch alignment computation.
+ *
+ *   C - allocated computational instance to initialize
+ *
+ *   s1 - top string, i.e. the string we are aligning against
+ *
+ *   s2 - side string, i.e. the string we align against s1
+ *
+ *   m -  match bonus
+ *
+ *   k -  mismatch penalty
+ *
+ *   d -  indel, i.e. gap, penalty
+ *
+ *   return - initialized computational instance
  */
 computation_t *
 init_computation(computation_t *C,
@@ -178,11 +190,12 @@ init_computation(computation_t *C,
         return C;
 }
 
-/* free_computation()
- * ------------------
- * Clean up a Needleman-Wunsch alignment computation.
+/*
+ * free_computation()
  *
- * C: the computation instance to clean up
+ *   Clean up a Needleman-Wunsch alignment computation.
+ *
+ *   C - the computation instance to clean up
  */
 void
 free_computation(computation_t *C)
@@ -200,6 +213,13 @@ free_computation(computation_t *C)
         free(C);
 }
 
+/*
+ * inc_solution_count()
+ *
+ *   Increment the solution count for the given computation.
+ *
+ *   C - target computation
+ */
 void
 inc_solution_count(computation_t *C)
 {
@@ -214,6 +234,15 @@ inc_solution_count(computation_t *C)
         }
 }
 
+/*
+ * get_solution_count()
+ *
+ *   Return the solution count for the given computation.
+ *
+ *   C - target computation
+ *
+ *   return - the computation's solution total
+ */
 unsigned int
 get_solution_count(computation_t *C)
 {
