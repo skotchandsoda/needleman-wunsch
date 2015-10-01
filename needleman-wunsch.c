@@ -608,15 +608,19 @@ compute_table_scores(computation_t *C)
 
         /* Join the worker threads */
         int res;
+        int join_count = 0;
         for (int i = 0; i < C->num_threads; i++) {
                 res = pthread_join(C->worker_threads[i], NULL);
                 check(0 == res, "pthread_join failed");
+                join_count = join_count + 1;
                 debug("Joined thread %d", i+1);
         }
+        check(join_count == C->num_threads, "this should never happen");
         debug("Joined %d worker thread%s", C->num_threads,
               (C->num_threads == 1 ? "" : "s"));
         free(C->worker_threads);
-        debug("%u branches in walk table\n", C->walk_table->branch_count);
+        debug("%u branches in walk table\n",
+              get_branch_count(C->walk_table, C->num_threads));
 }
 
 /*
