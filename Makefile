@@ -34,7 +34,7 @@ SRC = needleman-wunsch.c score-table.c walk-table.c print-table.c \
       format.c dbg.c read-sequences.c computation.c
 INC = $(SRC:.c=.h)
 OBJ = ${SRC:.c=.o}
-CFLAGS = -O3
+CFLAGS = -std=gnu99 -O3 -Wall -Wextra
 LIB = -lpthread
 
 .SUFFIXES:
@@ -54,6 +54,6 @@ $(PROG): $(OBJ)
 
 $(OBJ): $(INC)
 
-.PHONY: clean .POSIX
+.PHONY: clean
 clean:
 	rm -f $(OBJ) $(PROG)
