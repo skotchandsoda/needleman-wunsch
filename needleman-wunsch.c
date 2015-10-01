@@ -592,7 +592,7 @@ compute_table_scores(computation_t *C)
         /* Spawn worker threads to process sets of columns */
         debug("Spawning %d worker thread%s for scores table computation",
               C->num_threads, (C->num_threads == 1 ? "" : "s"));
-        for (int i = 0; i < C->num_threads; i++) {
+        for (unsigned int i = 0; i < C->num_threads; i++) {
                 /* Initialize thread-local arguments for processing a
                  * set of cell-columns */
                 args[i].start_col = i + 1;
@@ -608,8 +608,8 @@ compute_table_scores(computation_t *C)
 
         /* Join the worker threads */
         int res;
-        int join_count = 0;
-        for (int i = 0; i < C->num_threads; i++) {
+        unsigned int join_count = 0;
+        for (unsigned int i = 0; i < C->num_threads; i++) {
                 res = pthread_join(C->worker_threads[i], NULL);
                 check(0 == res, "pthread_join failed");
                 join_count = join_count + 1;
