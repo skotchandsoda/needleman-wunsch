@@ -710,6 +710,9 @@ int main(int argc, char **argv)
         /* Set program name */
         set_prog_name(argv[0]);
 
+        /* Clear errno */
+        errno = 0;
+
         /* Parse option flags */
         extern char *optarg;
         extern int optind;
@@ -756,9 +759,9 @@ int main(int argc, char **argv)
 
         /* Make sure we have the right number of operands */
         if (optind + NUM_OPERANDS != argc) {
-                log_err("expected %d operands but received %s %d", NUM_OPERANDS,
+                log_err("expected %d operands but received%s %d", NUM_OPERANDS,
                         (argc - optind > NUM_OPERANDS ||
-                         argc - optind == 0 ? "" : "only"),
+                         argc - optind == 0 ? "" : " only"),
                         argc - optind);
                 usage();
         }
