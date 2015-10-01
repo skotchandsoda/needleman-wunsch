@@ -38,11 +38,23 @@
  *                table in the Needleman Wunsch algorithm.
  */
 
+#include <pthread.h>
 #include <stdlib.h>
 
 #include "dbg.h"
 #include "walk-table.h"
 
+/*
+ * alloc_walk_table()
+ *
+ *   Allocate a walk_table_t with an MxN matrix of walk_table_cell_t's.
+ *
+ *   M - number of columns in the matrix
+ *
+ *   N - number of rows in the matrix
+ *
+ *   return - allocated pointer to a walk_table_t
+ */
 walk_table_t *
 alloc_walk_table(int M, int N)
 {
@@ -69,19 +81,6 @@ alloc_walk_table(int M, int N)
 void
 free_walk_table(walk_table_t *W, unsigned int nthreads)
 {
-        /* Destroy mutex and conditional variable objects */
-        /* int res; */
-        /* if (1 == multiple_threads) { */
-        /*         for (int i = 0; i < W->M; i++) { */
-        /*                 for (int j = 0; j < W->N; j++) { */
-        /*                         res = pthread_mutex_destroy(&T->cells[i][j].score_mutex); */
-        /*                         check(0 == res, "pthread_mutex_destroy failed"); */
-        /*                         res = pthread_cond_destroy(&T->cells[i][j].processed_cv); */
-        /*                         check(0 == res, "pthread_cond_destroy failed"); */
-        /*                 } */
-        /*         } */
-        /* } */
-
         /* Free each subarray (column) of walk_table_cells */
         for (int i = 0; i < W->M; i++) {
                 free(W->cells[i]);
@@ -90,13 +89,22 @@ free_walk_table(walk_table_t *W, unsigned int nthreads)
         /* Free the top-level array of walk_table_cell_t pointers */
         free(W->cells);
 
-        int res = pthread_rwlock_destroy(&W->branch_count_rwlock);
-        check(0 == res, "pthread_rwlock_destroy failed");
+        if (nthreads > 1) {
+                int res = pthread_rwlock_destroy(&W->branch_count_rwlock);
+                check(0 == res, "pthread_rwlock_destroy failed");
+        }
 
         /* Free the walk table itself */
         free(W);
 }
 
+/*
+ * inc_branch_count()
+ *
+ *   Increment the branch count for the given walk table.
+ *
+ *   W - target walk table
+ */
 void
 inc_branch_count(walk_table_t *W, unsigned int nthreads)
 {
@@ -109,4 +117,31 @@ inc_branch_count(walk_table_t *W, unsigned int nthreads)
         if (nthreads > 1) {
                 pthread_rwlock_unlock(&W->branch_count_rwlock);
         }
+}
+
+/*
+ * get_branch_count()
+ *
+ *   Return the branch count for the given walk table.
+ *
+ *   W - target walk table
+ *
+ *   return - the walk table's branch count
+ */
+unsigned int
+get_branch_count(walk_table_t *W, unsigned int nthreads)
+{
+        unsigned int count;
+
+        if (nthreads > 1) {
+                pthread_rwlock_rdlock(&W->branch_count_rwlock);
+        }
+
+        count = W->branch_count;
+
+        if (nthreads > 1) {
+                pthread_rwlock_unlock(&W->branch_count_rwlock);
+        }
+
+        return count;
 }

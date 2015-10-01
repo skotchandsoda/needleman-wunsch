@@ -44,9 +44,8 @@
 /* arrow_t: Directions in a walk_table_t. */
 typedef enum {left, up, diag} arrow_t;
 
-/* cell_t: Cell in a walk_table_t. */
+/* walk_table_cell_t: Cell in a walk_table_t. */
 typedef struct walk_table_cell {
-        /* int score; */
         int diag;
         int left;
         int up;
@@ -54,11 +53,7 @@ typedef struct walk_table_cell {
         int left_done;
         int up_done;
         arrow_t src_direction;
-        /* int match; */
         int in_optimal_path;
-        /* int processed; */
-        /* pthread_mutex_t score_mutex; */
-        /* pthread_cond_t processed_cv; */
 } walk_table_cell_t;
 
 /* walk_table_t: An MxN table of walk_table_cells (i.e. matrix of
@@ -67,7 +62,6 @@ typedef struct walk_table {
         int M;
         int N;
         walk_table_cell_t **cells;
-        /* int greatest_abs_val; */
         unsigned int branch_count;
         pthread_rwlock_t branch_count_rwlock;
 } walk_table_t;
@@ -81,5 +75,7 @@ walk_table_t *alloc_walk_table(int M, int N);
 void free_walk_table(walk_table_t *W, unsigned int nthreads);
 
 void inc_branch_count(walk_table_t *W, unsigned int nthreads);
+
+unsigned int get_branch_count(walk_table_t *W, unsigned int nthreads);
 
 #endif /* __WALK_TABLE_H__ */
