@@ -56,19 +56,37 @@ void set_prog_name(char *name);
                 prog, __FILE__, __LINE__, ##__VA_ARGS__)
 #endif
 
-/* Print a single backspace to remove the space left for the possible
-   errno string */
-#define clean_errno() (errno == 0 ? "\b" : strerror(errno))
+/* If there is no errno string, erase the colon printed to delineate the
+ * errno string */
+#define clean_errno() (errno == 0 ? "\b\b \b" : strerror(errno))
 
+/* If NDEBUG is defined, we print error and warning messages without
+ * __FILE__ and __LINE__ information.  Otherwise, debugging has been
+ * enabled, so we print those details for the programmer. */
+
+#ifdef NDEBUG
 #define log_err(M, ...)                                                 \
         fprintf(stderr,                                                 \
-                "%s: error: %s:%d: %s " M "\n",                        \
-                prog, __FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
+                "%s: error: " M ": %s\n",                               \
+                prog, ##__VA_ARGS__, clean_errno())
+#else
+#define log_err(M, ...)                                                 \
+        fprintf(stderr,                                                 \
+                "%s: error: %s:%d: " M ": %s\n",                        \
+                prog, __FILE__,__LINE__, ##__VA_ARGS__, clean_errno())
+#endif
 
+#ifdef NDEBUG
+#define log_warn(M, ...)                                                \
+        fprintf(stderr,                                                 \
+                "%s: warning:" M ": %s\n",                              \
+                prog, ##__VA_ARGS__, clean_errno())
+#else
 #define log_warn(M, ...)                                                \
         fprintf(stderr,                                                 \
                 "%s: warning: %s:%d: %s " M "\n",                       \
-                prog, __FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
+                prog, __FILE__, __LINE__, ##__VA_ARGS__, clean_errno())
+#endif
 
 #define log_info(M, ...)                                   \
         fprintf(stderr,                                    \
@@ -86,7 +104,7 @@ void set_prog_name(char *name);
                 exit(1);
 
 #define unreachable(M, ...)                                     \
-        sentinel("Unreachable code reached; giving up.")
+        sentinel("unreachable code executed; giving up")
 
 #define check_mem(A) check((A), "Out of memory.")
 
