@@ -37,7 +37,12 @@
 
 #include "format.h"
 
-// Set the output formatting to any of the formats in fmt_t the enum
+/*
+ * set_fmt()
+ *
+ *   Set the output formatting to any of the formats in the fmt_t enum.
+ *   See format.h for the #defines used here.
+ */
 void
 set_fmt(fmt_t f)
 {
@@ -71,14 +76,18 @@ set_fmt(fmt_t f)
                         printf(GAP_CHAR_FMT);
                         break;
                 default:
-                        fprintf(stderr, "the impossible has happened; giving up\n");
-                        exit(1);
+                        unreachable();
                         break;
                 }
         }
 }
 
-// Reset the output fomatting
+/* 
+ * reset_fmt()
+ *
+ *   Reset the output fomatting (i.e. reset colors/bolding to normal) on
+ *   the standard output.
+ */
 void reset_fmt()
 {
         if (cflag == 1) {

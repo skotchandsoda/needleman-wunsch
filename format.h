@@ -30,10 +30,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* 
+/*
  * format.h - Definitions of ANSI color escape sequences for more
- *            colorful printing.  Also, prototypes for functions
- *            implemented in format.c.
+ *            colorful printing.  Prototypes for functions implemented
+ *            in format.c.
  */
 
 #ifndef __FORMAT_H__
@@ -43,12 +43,12 @@
  * standard*/
 #define ANSI_CSI_OPEN   "\x1b["
 
-/* 'm' ends SGI formatting */
+/* An 'm' ends SGI formatting. */
 #define ANSI_SGI_CLOSE  "m"
 
 /* Tricky: BOLD can mean bold and/or bright colors.  It varies from
-   emulator to emulator, so consistent coloring/font handling is
-   impossible. */
+ * emulator to emulator, so consistent coloring/font handling is
+ * impossible without significant effort. */
 #define ANSI_BOLD       "1"
 #define ANSI_UNDERLINE  "4"
 #define ANSI_FG_RED     "31"
@@ -60,8 +60,8 @@
 #define ANSI_FMT_RESET  "0"
 
 /* The AIXTERM extensions are supported by some terminals.  If they were
-   supported by all, we could consistently have bright colors without bold
-   text, but alas: the world is cruel. */
+ * supported by all, we could consistently have bright colors _without_
+ * bold text, but alas: the world is cruel. */
 #define AIX_FG_RED      "91"
 #define AIX_FG_GREEN    "92"
 #define AIX_FG_YELLOW   "93"
@@ -108,11 +108,13 @@
         ANSI_FMT_RESET                          \
         ANSI_SGI_CLOSE
 
-/* Flag for ANSI-escape formatted output.  Externed in needleman-wunsch.c */
+/* Flag for ANSI-escape formatted output.  It is externed in
+ * needleman-wunsch.c. */
 int cflag;
 
-/* Type describing the various formatting options we support when printing
-   the aligned strings and the table */
+/* fmt_t describes the various formatting options we support when
+ * printing the aligned strings (the default behavior) and the table
+ * (via the '-t' flag). */
 typedef enum {
         top_string_fmt,
         side_string_fmt,
@@ -125,11 +127,8 @@ typedef enum {
         gap_char_fmt
 } fmt_t;
 
-/* Set the output formatting to any of the formats described in the
-   fmt_t enum above */
 void set_fmt(fmt_t f);
 
-/* Reset the output fomatting */
 void reset_fmt();
 
 #endif /* __FORMAT_H__ */
