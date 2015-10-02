@@ -82,7 +82,7 @@ set_fmt(fmt_t f)
         }
 }
 
-/* 
+/*
  * reset_fmt()
  *
  *   Reset the output fomatting (i.e. reset colors/bolding to normal) on
