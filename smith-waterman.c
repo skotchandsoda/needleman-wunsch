@@ -3,37 +3,39 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
  *   1. Redistributions of source code must retain the above copyright
  *      notice, this list of conditions and the following disclaimer.
  *
- *   2. Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in the
- *      documentation and/or other materials provided with the distribution.
+ *   2. Redistributions in binary form must reproduce the above
+ *      copyright notice, this list of conditions and the following
+ *      disclaimer in the documentation and/or other materials provided
+ *      with the distribution.
  *
  *   3. Neither the name of the copyright holder nor the names of its
- *      contributors may be used to endorse or promote products derived from
- *      this software without specific prior written permission.
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+ * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * needleman-wunsch.c - Implementation of the Needleman-Wunsch sequence
- *                      alignment algorithm.
- *                      http://en.wikipedia.org/Needleman–Wunsch_algorithm
+/* 
+ * smith-waterman.c - an implementation of the Smith-Waterman algorithm
+ *                    for locally optimal sequence alignment.
+ *                    https://en.wikipedia.org/wiki/Smith–Waterman_algorithm
  */
 
 #include <math.h>
@@ -66,8 +68,8 @@ void
 usage()
 {
         fprintf(stderr, "\
-usage: needleman-wunsch [-c][-h][-l][-q][-s][-t][-u]\n\
-                        [-p num-threads] [-f sequence-file] m k d\n\
+usage: smith-waterman [-c][-h][-l][-q][-s][-t][-u]\n\
+                      [-p num-threads] [-f sequence-file] m k d\n\
 Align two sequences with the Needleman-Wunsch algorithm\n\
 operands:\n\
    m   match bonus\n\
@@ -542,8 +544,15 @@ score_cell(computation_t *C, int col, int row)
                 pthread_mutex_lock(&target_cell->score_mutex);
         }
 
-        /* The current cell's score is the max of the three candidate scores */
-        target_cell->score = max3(up_score, left_score, diag_score);
+        /* For Needleman-Wunsch and Overlap, the current cell's score is
+         * the max of the three candidate scores.  For Smith-Waterman,
+         * the current cell's score is the max of the aforementioned
+         * cell-scores and zero. */
+        if (C->algorithm == SW) {
+                target_cell->score = max3_or_zero(up_score, left_score, diag_score);
+        } else {
+                target_cell->score = max3(up_score, left_score, diag_score);
+        }
 
         if (C->num_threads > 1) {
                 /* We've finalized the cell's score, so we mark it as
@@ -560,32 +569,44 @@ score_cell(computation_t *C, int col, int row)
          *************************/
 
         /* Mark the optimal paths in the walk table.  Provided that a
-           path's score is equal to the target cell's score, i.e. the
-           maximum of the three candidate scores, it is an optimal
-           path. */
+         * path's score is equal to the target cell's score, i.e. the
+         * maximum of the three candidate scores, it is an optimal
+         * path. */
         walk_table_cell_t *target_walk_cell = &C->walk_table->cells[col][row];
-        if (target_cell->score == diag_score) {
-                target_walk_cell->diag = 1;
-                target_walk_cell->diag_done = 0;
-        } else {
+
+        /* If we're using Smith-Waterman and the current cell's score is zero,
+         * this is the end of the "path." */
+        if (C->algorithm == SW && target_cell->score == 0) {
                 target_walk_cell->diag_done = 1;
-        }
-        if (target_cell->score == up_score) {
-                target_walk_cell->up = 1;
-                target_walk_cell->up_done = 0;
-        } else {
                 target_walk_cell->up_done = 1;
-        }
-        if (target_cell->score == left_score) {
-                target_walk_cell->left = 1;
-                target_walk_cell->left_done = 0;
-        } else {
                 target_walk_cell->left_done = 1;
         }
-
+        /* Otherwise, mark the path accordingly. */
+        else {
+                if (target_cell->score == diag_score) {
+                        target_walk_cell->diag = 1;
+                        target_walk_cell->diag_done = 0;
+                } else {
+                        target_walk_cell->diag_done = 1;
+                }
+                if (target_cell->score == up_score) {
+                        target_walk_cell->up = 1;
+                        target_walk_cell->up_done = 0;
+                } else {
+                        target_walk_cell->up_done = 1;
+                }
+                if (target_cell->score == left_score) {
+                        target_walk_cell->left = 1;
+                        target_walk_cell->left_done = 0;
+                } else {
+                        target_walk_cell->left_done = 1;
+                }
+        }
         /* If we can branch here, i.e. multiple paths have the same
-           scores, note it. */
-        if (target_walk_cell->diag + target_walk_cell->up + target_walk_cell->left > 1) {
+           score, note it by incrementing the branch count. */
+        if (1 < (target_walk_cell->diag +
+                 target_walk_cell->up +
+                 target_walk_cell->left)) {
                 inc_branch_count(C->walk_table, C->num_threads);
         }
 }
@@ -607,7 +628,7 @@ score_cell_column(computation_t *C, int col)
         score_table_t *S = C->score_table;
 
         /* Compute the score for each cell in the column */
-        for (int row = 1; row < C->score_table->N; row++) {
+        for (int row = 1; row < S->N; row++) {
                 /* Compute the cell's score */
                 score_cell(C, col, row);
 
@@ -707,9 +728,9 @@ compute_table_scores(computation_t *C)
 }
 
 /*
- * needleman_wunsch()
+ * smith_waterman()
  *
- *   Execute the Needleman-Wunsch globally-optimal sequence alignment
+ *   Execute the Smith-Waterman locally-optimal sequence alignment
  *   algorithm for the given inputs.
  *
  *   s1 - Top string, i.e. the first input sequence
@@ -733,18 +754,18 @@ compute_table_scores(computation_t *C)
  *                  scoring the computation's score table.
  */
 void
-needleman_wunsch(char *s1, char *s2, int m, int k, int d, int num_threads)
+smith_waterman(char *s1, char *s2, int m, int k, int d, int num_threads)
 {
         /* Allocate and initialize computation */
         computation_t *C = alloc_computation();
-        init_computation(C, NW, s1, s2, m, k, d, num_threads);
+        init_computation(C, SW, s1, s2, m, k, d, num_threads);
 
         /* Fill out table, i.e. compute the optimal score */
         compute_table_scores(C);
 
         /* Walk the table.  Mark the optimal path if tflag is set, print
-           the aligned strings if qflag is NOT set, and list counts for
-           each alignment if lflag is set */
+         * the aligned strings if qflag is NOT set, and list counts for
+         * each alignment if lflag is set */
         if (qflag != 1 || lflag == 1 || sflag == 1 || tflag == 1) {
                 construct_alignments(C);
         }
@@ -866,7 +887,7 @@ int main(int argc, char **argv)
         d = atoi(argv[optind + 2]);
 
         /* Solve the alignment */
-        needleman_wunsch(s1, s2, m, k, d, num_threads);
+        smith_waterman(s1, s2, m, k, d, num_threads);
 
         /* Clean up */
         free(s1);

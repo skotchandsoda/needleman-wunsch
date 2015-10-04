@@ -71,9 +71,15 @@ alloc_computation()
  *       column with seed values for the scoring run
  *
  *   nthreads - number of threads we're using for this computation
+ *
+ *   algorithm - alignment algorithm we're using
  */
 void
-init_computation_tables(score_table_t *S, walk_table_t *W, int d, unsigned int nthreads)
+init_computation_tables(score_table_t *S,
+                        walk_table_t *W,
+                        int d,
+                        unsigned int nthreads,
+                        alignment_t algorithm)
 {
         /* Initialize all mutex and condition variables. */
         int res;
@@ -102,7 +108,14 @@ init_computation_tables(score_table_t *S, walk_table_t *W, int d, unsigned int n
         /* The rest of the topmost row has score i * (-d) and LEFT
          * direction. */
         for (int i = 1; i < S->M; i++) {
-                S->cells[i][0].score = i * (-d);
+                /* Needleman-Wunsch initializes its score table with
+                 * penalties for gaps.  Smith-Waterman and Overlap do
+                 * not. */
+                if (algorithm == NW) {
+                        S->cells[i][0].score = i * (-d);
+                } else {
+                        S->cells[i][0].score = 0;
+                }
                 S->cells[i][0].processed = 1;
                 W->cells[i][0].left = 1;
                 W->cells[i][0].up_done = 1;
@@ -112,7 +125,14 @@ init_computation_tables(score_table_t *S, walk_table_t *W, int d, unsigned int n
         /* The rest of the leftmost column has score j * (-d) and UP
          * direction. */
         for (int j = 1; j < S->N; j++) {
-                S->cells[0][j].score = j * (-d);
+                /* Needleman-Wunsch initializes its score table with
+                 * penalties for gaps.  Smith-Waterman and Overlap do
+                 * not. */
+                if (algorithm == NW) {
+                        S->cells[0][j].score = j * (-d);
+                } else {
+                        S->cells[0][j].score = 0;
+                }
                 S->cells[0][j].processed = 1;
                 W->cells[0][j].up = 1;
                 W->cells[0][j].left_done = 1;
@@ -144,6 +164,7 @@ init_computation_tables(score_table_t *S, walk_table_t *W, int d, unsigned int n
  */
 computation_t *
 init_computation(computation_t *C,
+                 alignment_t algorithm,
                  char *s1,
                  char *s2,
                  int m,
@@ -160,13 +181,16 @@ init_computation(computation_t *C,
         int N = strlen(s2) + 1;
         debug("Side string is %d characters long", N-1);
 
+        /* Set the alignment algorithm we're using for this computation */
+        C->algorithm = algorithm;
+
         /* Create and initialize the scores table */
         debug("Allocating score table");
         C->score_table = alloc_score_table(M, N);
         debug("Allocating walk table");
         C->walk_table = alloc_walk_table(M, N);
         debug("Initializing score and walk tables");
-        init_computation_tables(C->score_table, C->walk_table, d, nthreads);
+        init_computation_tables(C->score_table, C->walk_table, d, nthreads, algorithm);
 
         /* Alignment strings */
         C->top_string = s1;

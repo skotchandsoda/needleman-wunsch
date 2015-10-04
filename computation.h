@@ -41,6 +41,8 @@
 #include "score-table.h"
 #include "walk-table.h"
 
+typedef enum {NW, SW, OV} alignment_t;
+
 /* Instance of a Needleman-Wunsch alignment computation */
 typedef struct computation {
         /* Sequences to align */
@@ -51,6 +53,9 @@ typedef struct computation {
         int match_score;
         int mismatch_penalty;
         int indel_penalty;
+
+        /* The alignment algorithm we're using */
+        alignment_t algorithm;
 
         /* Score table */
         score_table_t *score_table;
@@ -83,15 +88,18 @@ computation_t *alloc_computation();
 void init_computation_tables(score_table_t *S,
                              walk_table_t *W,
                              int d,
-                             unsigned int nthreads);
+                             unsigned int nthreads,
+                             alignment_t algorithm);
 
 computation_t *init_computation(computation_t *C,
+                                alignment_t algorithm,
                                 char *s1,
                                 char *s2,
                                 int m,
                                 int k,
                                 int d,
                                 unsigned int nthreads);
+
 
 void free_computation(computation_t *C);
 

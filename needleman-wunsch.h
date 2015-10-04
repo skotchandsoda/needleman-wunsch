@@ -39,11 +39,6 @@
 #ifndef __NEEDLEMAN_WUNSCH_H__
 #define __NEEDLEMAN_WUNSCH_H__
 
-#include <pthread.h>
-
-#include "score-table.h"
-
-
 /*
  * Global flags affecting program logic
  */
