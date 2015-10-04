@@ -29,11 +29,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-PROG = needleman-wunsch
-SRC = needleman-wunsch.c score-table.c walk-table.c print-table.c \
+PROGS = needleman-wunsch smith-waterman
+
+NW_SRC = needleman-wunsch.c
+NW_OBJ = needleman-wunsch.o
+SW_SRC = smith-waterman.c
+SW_OBJ = smith-waterman.o
+
+SRC = score-table.c walk-table.c print-table.c \
       format.c dbg.c read-sequences.c computation.c
-INC = $(SRC:.c=.h)
+INC = $(SRC:.c=.h) needleman-wunsch.h
 OBJ = ${SRC:.c=.o}
+
 CFLAGS = -std=gnu99 -O3 -Wall -Wextra
 LIB = -lpthread
 
@@ -44,16 +51,22 @@ LIB = -lpthread
 	$(CC) $(CFLAGS) -c $<
 
 all: CFLAGS += -DNDEBUG
-all: $(PROG)
+all: $(PROGS)
 
 debug: CFLAGS += -g
-debug: $(PROG)
+debug: $(PROGS)
 
-$(PROG): $(OBJ)
-	$(CC) -o $@ $(OBJ) $(LIB)
+needleman-wunsch: needleman-wunsch.o $(OBJ)
+	$(CC) -o $@ needleman-wunsch.o $(OBJ) $(LIB)
+
+smith-waterman: smith-waterman.o $(OBJ)
+	$(CC) -o $@ smith-waterman.o $(OBJ) $(LIB)
+
+# $(PROG): $(OBJ)
+# 	$(CC) -o $@ $(OBJ) $(LIB)
 
 $(OBJ): $(INC)
 
 .PHONY: clean
 clean:
-	rm -f $(OBJ) $(PROG)
+	rm -f $(OBJ) $(PROGS)
