@@ -223,7 +223,7 @@ construct_alignments_for_subtable(computation_t *C,
         int j = start_j;  /* position (y direction) */
         int n = start_n;  /* character count */
 
-        debug("Starting alignment construction.");
+        debug("Starting alignment construction");
 
         /* We do the walk iteratively because we'll overrun the stack on
          * a sufficiently large input.  Yes, it is ugly, but it is
@@ -327,16 +327,78 @@ construct_alignments_for_subtable(computation_t *C,
                 }
         }
 
-        debug("Finished alignment construction.");
+        debug("Finished alignment construction");
 }
 
-struct walk_table_args {
-        computation_t *C;
+struct row_col_node {
+        int col;
+        int row;
+        struct row_col_node *next;
+};
+
+struct row_col_node_list {
+        int len;
+        struct row_col_node *head;
+};
+
+struct row_col_node_list *
+get_list_of_starting_cells(computation_t *C)
+{
+        /* Allocate list */
+        struct row_col_node_list *L =
+                (struct row_col_node_list *)malloc(sizeof(struct row_col_node_list));
+
+        /* Populate list */
+        L->head = (struct row_col_node *)malloc(sizeof(struct row_col_node));
+        L->head->col = C->score_table->M - 1;
+        L->head->row = C->score_table->N - 1;
+        L->head->next = NULL;
+        L->len = 1;
+
+        return L;
+}
+
+struct start_cell {
         char *X;
         char *Y;
-        int start_i;
-        int start_j;
+        int n;
+        int start_col;
+        int start_row;
 };
+
+struct start_cell *
+get_start_points(computation_t *C)
+{
+        /* Get list of points to allocate for */
+        struct row_col_node_list *L = get_list_of_starting_cells(C);
+
+        /* Allocate for cells */
+        int ncells = L->len;
+        struct start_cell *start_cells =
+                (struct start_cell *)malloc(ncells * sizeof(struct start_cell));
+
+        /* Allocate for alignment buffers */
+        for (struct row_col_node n = L->head; n != NULL; n = n->next) {
+                start_cells[i].X = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
+                check(NULL != start_cells[i].X, "malloc failed");
+                start_cells[i].Y = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
+                check(NULL != start_cells[i].Y, "malloc failed");
+        }
+
+        return start_cells;
+}
+
+/*
+ * parallelizing_alignment_construction_is_optimal()
+ *
+ *   Return true is parallelizing the construction of alignments would be
+ *   faster than doing it serially.  Return false otherwise.
+ */
+int
+parallelizing_alignment_construction_is_optimal()
+{
+        return 1;
+}
 
 /*
  * construct_alignments()
@@ -360,16 +422,17 @@ construct_alignments(computation_t *C)
         char *X;
         char *Y;
 
-        /* Allocate buffers for printing the optimally aligned strings.  In the
-           worst case they will need to be M+N characters long. */
+        /* Allocate buffers for printing the optimally aligned strings.
+         * In the worst case they will need to be M+N characters
+         * long. */
         max_aligned_strlen = C->score_table->M + C->score_table->N;
-
-        debug("Allocated temporary solution printing strings X and Y.");
 
         X = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
         check(NULL != X, "malloc failed");
         Y = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
         check(NULL != Y, "malloc failed");
+
+        debug("Allocated temporary solution printing strings X and Y.");
 
         /* We walk through the table starting at the bottom-right-hand
          * corner */
