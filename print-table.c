@@ -195,7 +195,7 @@ width_needed_to_print_integer(int x)
 void
 print_table(score_table_t *S, walk_table_t *W, char *s1, char *s2, int unicode)
 {
-        int col_width = width_needed_to_print_integer(S->greatest_abs_val);
+        int col_width = width_needed_to_print_integer(S->max_abs_score);
 
         /* Print the top string, i.e. the first input string. */
         print_top_string(S, s1, col_width);

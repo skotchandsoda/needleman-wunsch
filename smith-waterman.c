@@ -480,7 +480,7 @@ get_list_of_starting_cells(computation_t *C)
         /* Populate list */
         struct row_col_node *node;
         score_table_t *S = C->score_table;
-        int max_score = S->greatest_abs_val;
+        int max_score = S->max_score;
         debug("Looking for start-cells for optimal local alignments.  " \
               "Max score is %d.", max_score);
         for (int i = 1; i < S->M; i++) {

@@ -321,7 +321,9 @@ print_summary(computation_t *C)
         if (NW == C->algorithm) {
                 opt_score = C->score_table->cells[max_col][max_row].score;
         } else if (SW == C->algorithm) {
-                opt_score = C->score_table->greatest_abs_val;
+                opt_score = C->score_table->max_score;
+        } else if (OV == C->algorithm) {
+                unreachable();
         } else {
                 unreachable();
         }
