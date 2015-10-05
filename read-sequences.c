@@ -99,7 +99,7 @@ read_two_sequences_from_stream(char **s1, char **s2, FILE *in)
 
         /* Verify we didn't already read EOF */
         check(0 == feof(in), "got EOF too early while reading input strings; " \
-              "expected at least two input strings but found only 1");
+              "expected 2 input strings but found only 1");
 
         /* Discard the whitespace between the two input strings. */
         int c = discard_whitespace_in_stream(in);
@@ -110,7 +110,7 @@ read_two_sequences_from_stream(char **s1, char **s2, FILE *in)
 
         /* Verify we didn't already read EOF */
         check(0 == feof(in), "got EOF too early when reading input strings; " \
-              "expected at least two input strings but found only 1");
+              "expected 2 input strings but found only 1");
 
         /* Put the last character back, as it's part of the next sequence */
         int res = ungetc(c, in);
