@@ -32,7 +32,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* 
+/*
  * smith-waterman.c - an implementation of the Smith-Waterman algorithm
  *                    for locally optimal sequence alignment.
  *                    https://en.wikipedia.org/wiki/Smith–Waterman_algorithm
@@ -101,23 +101,29 @@ options:\n\
  *   function.
  */
 void
-print_aligned_string_char(char *s1, char *s2, int n)
+print_aligned_string_char(char *s1, char *s2, int n, int lo, int hi)
 {
         /* Format the output character as defined in format.h */
-        if (s1[n] == s2[n]) {
-                set_fmt(match_char_fmt);
-        } else if (s1[n] == GAP_CHAR || s2[n] == GAP_CHAR) {
-                set_fmt(gap_char_fmt);
-        } else if (s1[n] != s2[n]) {
-                set_fmt(mismatch_char_fmt);
-        } else {
-                unreachable();
+        if (hi >= n && lo <= n) {
+                if (s1[n] == s2[n]) {
+                        set_fmt(match_char_fmt);
+                } else if (s1[n] == GAP_CHAR || s2[n] == GAP_CHAR) {
+                        set_fmt(gap_char_fmt);
+                } else if (s1[n] == ' ' || s2[n] == ' ') {
+                        set_fmt(no_overlap_char_fmt);
+                } else if (s1[n] != s2[n]) {
+                        set_fmt(mismatch_char_fmt);
+                } else {
+                        unreachable();
+                }
         }
 
         /* Print the character */
         printf("%c", s1[n]);
 
-        reset_fmt();
+        if (hi >= n && lo <= n) {
+                reset_fmt();
+        }
 }
 
 /*
@@ -129,7 +135,19 @@ print_aligned_string_char(char *s1, char *s2, int n)
  *
  *   Y - Aligned form of the side string to print
  *
- *   n - Length in characters of X and Y
+ *   n - Length of X and Y in characters
+ *
+ *   alignment_index_lower_bound - Characters in indices below this
+ *                                 value will not be counted in the
+ *                                 totals printed with the '-l' flag,
+ *                                 nor will they be formatted if the
+ *                                 '-c' flag is given
+ *
+ *   alignment_index_upper_bound - Characters in indices above this
+ *                                 value will not be counted in the
+ *                                 totals printed with the '-l' flag,
+ *                                 nor will they be formatted if the
+ *                                 '-c' flag is given
  *
  *   no_print_strings - If equal to 1, we don't print X and Y
  *
@@ -140,25 +158,34 @@ void
 print_solution(char *X,
                char *Y,
                int n,
+               int alignment_index_lower_bound,
+               int alignment_index_upper_bound,
                int no_print_strings,
                int print_counts)
 {
         int match_count = 0;
         int mismatch_count = 0;
         int gap_count = 0;
+        int no_overlap_count = 0;
 
         /* Print the strings backwards */
         for (int i = n; i > -1; i--) {
                 if (no_print_strings != 1) {
-                        print_aligned_string_char(X, Y, i);
+                        print_aligned_string_char(X, Y, i, alignment_index_lower_bound, alignment_index_upper_bound);
                 }
-                if (print_counts == 1) {
+                if (print_counts == 1 &&
+                    alignment_index_upper_bound >= i &&
+                    alignment_index_lower_bound <= i) {
                         if (X[i] == Y[i]) {
                                 match_count = match_count + 1;
                         } else if (X[i] == GAP_CHAR || Y[i] == GAP_CHAR) {
                                 gap_count = gap_count + 1;
-                        } else {
+                        } else if (X[i] == ' ' || Y[i] == ' ') {
+                                no_overlap_count = no_overlap_count + 1;
+                        } else if (X[i] != Y[i]) {
                                 mismatch_count = mismatch_count + 1;
+                        } else {
+                                unreachable();
                         }
                 }
         }
@@ -167,7 +194,7 @@ print_solution(char *X,
                 printf("\n");
 
                 for (int i = n; i > -1; i--) {
-                        print_aligned_string_char(Y, X, i);
+                        print_aligned_string_char(Y, X, i, alignment_index_lower_bound, alignment_index_upper_bound);
                 }
                 printf("\n");
         }
@@ -302,10 +329,16 @@ construct_alignments_for_subtable(computation_t *C,
                         /* Then, print the solution and increment the
                          * solution total. */
                         if (qflag != 1 || lflag == 1) {
-                                print_solution(X, Y, new_n-1, qflag, lflag);
+                                print_solution(X, Y, new_n-1, start_char_count, n-1, qflag, lflag);
                         }
 
                         inc_solution_count(C);
+
+                        /* By definition we are "done" if we cannot go further
+                         * in the table, so mark the cell "done." */
+                        W->cells[i][j].up_done = 1;
+                        W->cells[i][j].diag_done = 1;
+                        W->cells[i][j].left_done = 1;
                 }
 
                 /*
@@ -315,14 +348,14 @@ construct_alignments_for_subtable(computation_t *C,
                  *            then (2) return to the cell we were last
                  *            in via the 'src_direction' indicator.
                  */
-                if (W->cells[i][j].up_done &&
-                    W->cells[i][j].diag_done &&
-                    W->cells[i][j].left_done) {
+                if (1 == W->cells[i][j].up_done &&
+                    1 == W->cells[i][j].diag_done &&
+                    1 ==W->cells[i][j].left_done) {
                         /* Mark all possible paths as "not done" for
                            future visits. */
-                        W->cells[i][j].up_done   = (W->cells[i][j].up ? 0 : 1);
-                        W->cells[i][j].diag_done = (W->cells[i][j].diag ? 0 : 1);
-                        W->cells[i][j].left_done = (W->cells[i][j].left ? 0 : 1);
+                        W->cells[i][j].up_done   = 0;
+                        W->cells[i][j].diag_done = 0;
+                        W->cells[i][j].left_done = 0;
 
                         /* Change i and j so we are "back in the source
                            cell."  Mark the source cell's relevant
@@ -378,6 +411,8 @@ construct_alignments_for_subtable(computation_t *C,
                                 Y[n] = C->side_string[j-1];
                                 j = j - 1;
                                 W->cells[i][j].src_direction = up;
+                        } else {
+                                unreachable();
                         }
 
                         n = n + 1;
