@@ -113,11 +113,14 @@ init_computation_tables(score_table_t *S,
                  * not. */
                 if (algorithm == NW) {
                         S->cells[i][0].score = i * (-d);
+                        W->cells[i][0].left = 1;
+                        W->cells[i][0].left_done = 0;
                 } else {
                         S->cells[i][0].score = 0;
+                        W->cells[i][0].left = 0;
+                        W->cells[i][0].left_done = 1;
                 }
                 S->cells[i][0].processed = 1;
-                W->cells[i][0].left = 1;
                 W->cells[i][0].up_done = 1;
                 W->cells[i][0].diag_done = 1;
         }
@@ -130,11 +133,14 @@ init_computation_tables(score_table_t *S,
                  * not. */
                 if (algorithm == NW) {
                         S->cells[0][j].score = j * (-d);
+                        W->cells[0][j].up = 1;
+                        W->cells[0][j].up_done = 0;
                 } else {
                         S->cells[0][j].score = 0;
+                        W->cells[0][j].up = 0;
+                        W->cells[0][j].up_done = 1;
                 }
                 S->cells[0][j].processed = 1;
-                W->cells[0][j].up = 1;
                 W->cells[0][j].left_done = 1;
                 W->cells[0][j].diag_done = 1;
         }
@@ -173,9 +179,9 @@ init_computation(computation_t *C,
                  unsigned int nthreads)
 {
         /* We use an MxN table (M cols, N rows).  We add 1 to each of
-           the input strings' lengths to make room for the base row and
-           base column of scores (see init_score_table() in
-           score-table.c). */
+         * the input strings' lengths to make room for the base row and
+         * base column of scores (see init_score_table() in
+         * score-table.c). */
         int M = strlen(s1) + 1;
         debug("Top string is %d characters long", M-1);
         int N = strlen(s2) + 1;
@@ -298,8 +304,24 @@ print_summary(computation_t *C)
         unsigned int soln_count = get_solution_count(C);
         int max_col = C->score_table->M - 1;
         int max_row = C->score_table->N - 1;
+
         fprintf(stderr, "%d optimal alignment%s\n",
-               soln_count, (soln_count > 1 ? "s" : ""));
-        fprintf(stderr, "Optimal score is %-d\n",
-               C->score_table->cells[max_col][max_row].score);
+               soln_count, (soln_count == 1 ? "" : "s"));
+
+        /* In Needleman-Wunsch, the optimal score is the score in the
+         * bottom-righthand cell.  In Smith-Waterman, the optimal score
+         * is the greatest score in the table. */
+
+        /* FIXME: Need to implement logic for Overlap algorithm.  For
+         * now, set as unreachable. */
+        int opt_score;
+        if (NW == C->algorithm) {
+                opt_score = C->score_table->cells[max_col][max_row].score;
+        } else if (SW == C->algorithm) {
+                opt_score = C->score_table->greatest_abs_val;
+        } else {
+                unreachable();
+        }
+
+        fprintf(stderr, "Optimal score is %-d\n", opt_score);
 }

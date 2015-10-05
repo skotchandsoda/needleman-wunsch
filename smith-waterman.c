@@ -137,11 +137,11 @@ print_aligned_string_char(char *s1, char *s2, int n)
  *                  for this pair of aligned sequences
  */
 void
-print_aligned_strings_and_counts(char *X,
-                                 char *Y,
-                                 int n,
-                                 int no_print_strings,
-                                 int print_counts)
+print_solution(char *X,
+               char *Y,
+               int n,
+               int no_print_strings,
+               int print_counts)
 {
         int match_count = 0;
         int mismatch_count = 0;
@@ -183,6 +183,47 @@ print_aligned_strings_and_counts(char *X,
         printf("\n");
 }
 
+int
+fill_rest_of_solution_buffers(computation_t *C,
+                              char *X,
+                              char *Y,
+                              int i,
+                              int j,
+                              int n)
+{
+        /* While we aren't yet at the edge of the table, keep filling
+         * the buffers with characters from the top/side strings */
+        while (0 < i && 0 < j) {
+                X[n] = C->top_string[i-1];
+                Y[n] = C->side_string[j-1];
+                n = n + 1;
+                i = i - 1;
+                j = j - 1;
+        }
+
+        /* If we're now at the top of the table, copy the rest of the
+         * top string into buffer X and fill the remainder of Y with
+         * spaces. */
+        while (0 < i) {
+                X[n] = C->top_string[i-1];
+                Y[n] = ' ';
+                n = n + 1;
+                i = i - 1;
+        }
+
+        /* If we're now at the side of the table, copy the rest of the
+         * side string into buffer Y and fill the remainder of X with
+         * spaces. */
+        while (0 < j) {
+                X[n] = ' ';
+                Y[n] = C->side_string[j-1];
+                n = n + 1;
+                j = j - 1;
+        }
+
+        return n;
+}
+
 /*
  * construct_alignments_from_cell()
  *
@@ -198,40 +239,42 @@ print_aligned_strings_and_counts(char *X,
  *
  *   Y - buffer to store the aligned side string in
  *
- *   start_i - column of the cell to begin iterating from, i.e. the
- *             right boundary column of the subtable we're
- *             constructing solutions for
+ *   start_col - column of the cell to begin iterating from, i.e. the
+ *               right boundary column of the subtable we're
+ *               constructing solutions for
  *
- *   start_j - row of the cell to begin iterating from, i.e. the lower
- *             boundary row of the subtable we're constructing solutions
- *             for
+ *   start_row - row of the cell to begin iterating from, i.e. the lower
+ *               boundary row of the subtable we're constructing
+ *               solutions for
  *
- *   start_n - starting offset in the alignment string buffers (X & Y)
+ *   start_char_count - starting offset in the alignment string buffers
+ *                      (X & Y)
  */
 void
 construct_alignments_for_subtable(computation_t *C,
                                   char *X,
                                   char *Y,
-                                  int start_i,
-                                  int start_j,
-                                  int start_n)
+                                  int start_col,
+                                  int start_row,
+                                  int start_char_count)
 {
         /* We move through the walk table starting at the bottom-right
          * corner as defined by start_i (the righthand limit for this
          * table walk) and start_j (the lower limit for this table
          * walk). */
         walk_table_t *W = C->walk_table;
-        int i = start_i;  /* position (x direction) */
-        int j = start_j;  /* position (y direction) */
-        int n = start_n;  /* character count */
+        int i = start_col;  /* position (x direction) */
+        int j = start_row;  /* position (y direction) */
+        int n = start_char_count;  /* character count */
 
-        debug("Starting alignment construction");
+        debug("Starting alignment construction from (%d,%d)...", i, j);
 
         /* We do the walk iteratively because we'll overrun the stack on
          * a sufficiently large input.  Yes, it is ugly, but it is
          * necessary if we want to handle arbitrarily large inputs. */
-        while (!(i == start_i &&
-                 j == start_j &&
+        while (0 <= i && 0 <= j && start_col >= i && start_row >= j &&
+               !(i == start_col &&
+                 j == start_row &&
                  1 == W->cells[i][j].up_done &&
                  1 == W->cells[i][j].diag_done &&
                  1 == W->cells[i][j].left_done)) {
@@ -243,37 +286,47 @@ construct_alignments_for_subtable(computation_t *C,
                 }
 
                 /*
-                 *  Special Case: We've reached the top-left corner of
-                 *                the table, so we print the current
-                 *                solution (i.e. aligned strings X & Y)
-                 *                to the standard output.
+                 * Special Case: We can go no further from the current
+                 *               cell, i.e.  no forward paths are
+                 *               possible, so we print the current
+                 *               solution (the aligned strings X & Y) to
+                 *               the standard output.
                  */
-                if (i == 0 && j == 0) {
+                if (W->cells[i][j].up == 0 &&
+                    W->cells[i][j].diag == 0 &&
+                    W->cells[i][j].left == 0) {
+                        /* If we haven't exhausted the top/side strings,
+                         * fill out the rest of X and Y. */
+                        int new_n = fill_rest_of_solution_buffers(C, X, Y, i, j, n);
+
+                        /* Then, print the solution and increment the
+                         * solution total. */
                         if (qflag != 1 || lflag == 1) {
-                                print_aligned_strings_and_counts(X, Y, n-1,
-                                                                 qflag, lflag);
+                                print_solution(X, Y, new_n-1, qflag, lflag);
                         }
+
                         inc_solution_count(C);
                 }
 
                 /*
                  * Base Case: All cells adjacent (up/diag/left) to the
                  *            current cell have been marked "done," so
-                 *            we return to the cell we were last in via
-                 *            the 'src_direction' indicator.
+                 *            we (1) print the current solution, and
+                 *            then (2) return to the cell we were last
+                 *            in via the 'src_direction' indicator.
                  */
                 if (W->cells[i][j].up_done &&
                     W->cells[i][j].diag_done &&
                     W->cells[i][j].left_done) {
                         /* Mark all possible paths as "not done" for
-                           future visits */
+                           future visits. */
                         W->cells[i][j].up_done   = (W->cells[i][j].up ? 0 : 1);
                         W->cells[i][j].diag_done = (W->cells[i][j].diag ? 0 : 1);
                         W->cells[i][j].left_done = (W->cells[i][j].left ? 0 : 1);
 
                         /* Change i and j so we are "back in the source
                            cell."  Mark the source cell's relevant
-                           direction "done" */
+                           direction "done." */
                         switch(W->cells[i][j].src_direction) {
                         case up:
                                 j = j + 1;
@@ -298,7 +351,9 @@ construct_alignments_for_subtable(computation_t *C,
                 }
 
                 /*
-                 * Recursive Case: Not done in current cell.  Iterate
+                 * Recursive Case: Not done in current cell.  Copy
+                 *                 characters from top/side strings into
+                 *                 X and Y as needed and then iterate
                  *                 into an adjacent (up/diag/left) cell
                  *                 if we haven't yet marked the cell
                  *                 "done."
@@ -329,78 +384,88 @@ construct_alignments_for_subtable(computation_t *C,
                 }
         }
 
-        debug("Finished alignment construction");
+        debug("Finished alignment construction from (%d,%d).", i, j);
 }
 
-/* struct row_col_node { */
-/*         int col; */
-/*         int row; */
-/*         struct row_col_node *next; */
-/* }; */
+struct row_col_node {
+        int col;
+        int row;
+        struct row_col_node *next;
+};
 
-/* struct row_col_node_list { */
-/*         int len; */
-/*         struct row_col_node *head; */
-/* }; */
+struct row_col_node *
+alloc_row_col_node()
+{
+        struct row_col_node *n =
+                (struct row_col_node *)malloc(sizeof(struct row_col_node));
+        check(NULL != n, "malloc failed");
+        n->next = NULL;
 
-/* struct row_col_node_list * */
-/* get_list_of_starting_cells(computation_t *C) */
-/* { */
-/*         /\* Allocate list *\/ */
-/*         struct row_col_node_list *L = */
-/*                 (struct row_col_node_list *)malloc(sizeof(struct row_col_node_list)); */
+        return n;
+}
 
-/*         /\* Populate list *\/ */
-/*         L->head = (struct row_col_node *)malloc(sizeof(struct row_col_node)); */
-/*         L->head->col = C->score_table->M - 1; */
-/*         L->head->row = C->score_table->N - 1; */
-/*         L->head->next = NULL; */
-/*         L->len = 1; */
+struct row_col_node_list {
+        int len;
+        struct row_col_node *head;
+};
 
-/*         return L; */
-/* } */
+struct row_col_node_list *
+alloc_row_col_node_list()
+{
+        struct row_col_node_list *L =
+                (struct row_col_node_list *)malloc(sizeof(struct row_col_node_list));
+        check(NULL != L, "malloc failed");
+        L->len = 0;
+        L->head = NULL;
 
-/* struct start_cell { */
-/*         char *X; */
-/*         char *Y; */
-/*         int n; */
-/*         int start_col; */
-/*         int start_row; */
-/* }; */
+        return L;
+}
 
-/* struct start_cell * */
-/* get_start_points(computation_t *C) */
-/* { */
-/*         /\* Get list of points to allocate for *\/ */
-/*         struct row_col_node_list *L = get_list_of_starting_cells(C); */
+void
+free_row_col_node_list(struct row_col_node_list *L)
+{
+        struct row_col_node *curr = L->head;
+        struct row_col_node *prev = curr;
+        while (NULL != curr) {
+                prev = curr;
+                curr = curr->next;
+                free(prev);
+        }
 
-/*         /\* Allocate for cells *\/ */
-/*         int ncells = L->len; */
-/*         struct start_cell *start_cells = */
-/*                 (struct start_cell *)malloc(ncells * sizeof(struct start_cell)); */
+        free(L);
+}
 
-/*         /\* Allocate for alignment buffers *\/ */
-/*         for (struct row_col_node n = L->head; n != NULL; n = n->next) { */
-/*                 start_cells[i].X = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1); */
-/*                 check(NULL != start_cells[i].X, "malloc failed"); */
-/*                 start_cells[i].Y = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1); */
-/*                 check(NULL != start_cells[i].Y, "malloc failed"); */
-/*         } */
+struct row_col_node_list *
+get_list_of_starting_cells(computation_t *C)
+{
+        /* Allocate list */
+        struct row_col_node_list *L = alloc_row_col_node_list();
+        struct row_col_node **ptr_to_end_of_L = &L->head;
 
-/*         return start_cells; */
-/* } */
+        /* Populate list */
+        struct row_col_node *node;
+        score_table_t *S = C->score_table;
+        int max_score = S->greatest_abs_val;
+        debug("Looking for start-cells for optimal local alignments.  " \
+              "Max score is %d.", max_score);
+        for (int i = 1; i < S->M; i++) {
+                for (int j = 1; j < S->N; j++) {
+                        if (max_score == S->cells[i][j].score) {
+                                debug("Start cell for local alignment " \
+                                      "@ (%d,%d)", i, j);
+                                node = alloc_row_col_node();
+                                node->col = i;
+                                node->row = j;
+                                *ptr_to_end_of_L = node;
+                                ptr_to_end_of_L = &(*ptr_to_end_of_L)->next;
+                                L->len = L->len + 1;
+                        }
+                }
+        }
+        debug("Found %d eligible cells.", L->len);
 
-/* /\* */
-/*  * parallelizing_alignment_construction_is_optimal() */
-/*  * */
-/*  *   Return true is parallelizing the construction of alignments would be */
-/*  *   faster than doing it serially.  Return false otherwise. */
-/*  *\/ */
-/* int */
-/* parallelizing_alignment_construction_is_optimal() */
-/* { */
-/*         return 1; */
-/* } */
+        return L;
+}
 
 /*
  * construct_alignments()
@@ -420,6 +485,8 @@ construct_alignments_for_subtable(computation_t *C,
 void
 construct_alignments(computation_t *C)
 {
+        struct row_col_node_list *L = get_list_of_starting_cells(C);
+
         int max_aligned_strlen;
         char *X;
         char *Y;
@@ -429,27 +496,61 @@ construct_alignments(computation_t *C)
          * long. */
         max_aligned_strlen = C->score_table->M + C->score_table->N;
 
+        debug("Allocating temporary solution printing strings X and Y.");
         X = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
         check(NULL != X, "malloc failed");
         Y = (char *)malloc((max_aligned_strlen * sizeof(char)) + 1);
         check(NULL != Y, "malloc failed");
 
-        debug("Allocated temporary solution printing strings X and Y.");
+        /* For each node in the list, we walk through the table starting
+         * at the cell indicated by the node */
+        struct row_col_node *node = L->head;
+        while (NULL != node) {
+                int start_col = node->col;
+                int start_row = node->row;
+                int n = 0;
 
-        /* We walk through the table starting at the bottom-right-hand
-         * corner */
-        int i = C->score_table->M - 1;  /* starting column */
-        int j = C->score_table->N - 1;  /* starting row */
-        int n = 0;                      /* starting character count */
+                int i = C->score_table->M - 1;
+                int j = C->score_table->N - 1;
 
-        /* Walk the table starting at the bottom-right corner, marking cells in
-         * the optimal path and counting the total possible optimal solutions
-         * (alignments) */
-        construct_alignments_for_subtable(C, X, Y, i, j, n);
+                /* Adjust horizontally on walk table */
+                while (i - start_col > j - start_row) {
+                        X[n] = C->top_string[i-1];
+                        Y[n] = ' ';
+                        i = i - 1;
+                        n = n + 1;
+                }
+
+                /* Adjust vertically on walk table */
+                while (j - start_row > i - start_col) {
+                        X[n] = ' ';
+                        Y[n] = C->side_string[j-1];
+                        j = j - 1;
+                        n = n + 1;
+                }
+
+                /* Move diagonally on walk table until at starting col/row */
+                while (j != start_row || i != start_col) {
+                        X[n] = C->top_string[i-1];
+                        Y[n] = C->side_string[j-1];
+                        i = i - 1;
+                        j = j - 1;
+                        n = n + 1;
+                }
+
+                /* Walk the cell at (start_col, start_row), marking
+                 * cells in the optimal path and counting the total
+                 * possible optimal solutions (alignments) */
+                construct_alignments_for_subtable(C, X, Y, start_col, start_row, n);
+
+                node = node->next;
+        }
 
         /* Clean up solution storage buffers */
         free(X);
         free(Y);
+
+        free_row_col_node_list(L);
 }
 
 /*

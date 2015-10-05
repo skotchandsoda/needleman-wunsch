@@ -74,7 +74,7 @@ alloc_score_table(int M, int N)
         /* Allocate subarrays for S->cells */
         for (int i = 0; i < M; i++) {
                 S->cells[i] = (score_table_cell_t *)calloc(N, sizeof(score_table_cell_t));
-                check(NULL != S->cells[i], "malloc failed");
+                check(NULL != S->cells[i], "calloc failed");
         }
 
         return S;
