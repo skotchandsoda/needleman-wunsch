@@ -63,10 +63,10 @@ smith-waterman: smith-waterman.o $(OBJ)
 	$(CC) -o $@ smith-waterman.o $(OBJ) $(LIB)
 
 # $(PROG): $(OBJ)
-# 	$(CC) -o $@ $(OBJ) $(LIB)
+#	$(CC) -o $@ $(OBJ) $(LIB)
 
 $(OBJ): $(INC)
 
 .PHONY: clean
 clean:
-	rm -f $(OBJ) $(PROGS)
+	rm -f $(OBJ) needleman-wunsch.o smith-waterman.o $(PROGS)
