@@ -765,17 +765,26 @@ score_cell_column(computation_t *C, int col)
 
         /* Compute the score for each cell in the column */
         for (int row = 1; row < S->N; row++) {
-                /* Compute the cell's score */
                 score_cell(C, col, row);
 
-                /*
-                 * If we're printing the table and the absolute value of
-                 * the current cell's score is greater than the one
-                 * marked in the table, update the largest value.
-                 */
-                int current_abs_score = abs(S->cells[col][row].score);
-                if (tflag == 1 && current_abs_score > S->greatest_abs_val) {
-                        S->greatest_abs_val = current_abs_score;
+                /* If the algorithm in use is Smith-Waterman and value
+                 * of the current cell's score is greater than the one
+                 * marked in the table, update the largest value. */
+                if (SW == C->algorithm) {
+                        int current_score = S->cells[col][row].score;
+                        if (current_score > S->max_score) {
+                                S->max_score = current_score;
+                        }
+                }
+
+                /* If we're printing the table and the absolute value of
+                 * the current cell is great than the one saved in the
+                 * table, update the value in the table. */
+                if (1 == tflag) {
+                        unsigned int current_abs_score = abs(S->cells[col][row].score);
+                        if (current_abs_score > S->max_abs_score) {
+                                S->max_abs_score = current_abs_score;
+                        }
                 }
         }
 }
@@ -902,7 +911,7 @@ smith_waterman(char *s1, char *s2, int m, int k, int d, int num_threads)
         /* Walk the table.  Mark the optimal path if tflag is set, print
          * the aligned strings if qflag is NOT set, and list counts for
          * each alignment if lflag is set */
-        if (qflag != 1 || lflag == 1 || sflag == 1 || tflag == 1) {
+        if (qflag == 0 || lflag == 1 || sflag == 1 || tflag == 1) {
                 construct_alignments(C);
         }
 

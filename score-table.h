@@ -70,7 +70,8 @@ typedef struct score_table {
         int M;
         int N;
         score_table_cell_t **cells;
-        int greatest_abs_val;
+        int max_score;
+        unsigned int max_abs_score;
         /* unsigned int branch_count; */
         /* pthread_rwlock_t branch_count_rwlock; */
 } score_table_t;

@@ -94,8 +94,11 @@ init_computation_tables(score_table_t *S,
                 }
         }
 
-        /* Initialize the largest value. */
-        S->greatest_abs_val = 0;
+        /* Initialize the maximum score (for use with Smith-Waterman)
+         * and the largest absolute value (for use when printing the
+         * table). */
+        S->max_score = 0;
+        S->max_abs_score = 0;
 
         /* Initialize the table.  Cell (0,0) has a score of 0 and no
            optimal direction. */
