@@ -260,9 +260,9 @@ construct_alignments_for_subtable(computation_t *C,
                  *            we return to the cell we were last in via
                  *            the 'src_direction' indicator.
                  */
-                if (W->cells[i][j].up_done &&
-                    W->cells[i][j].diag_done &&
-                    W->cells[i][j].left_done) {
+                if (1 == W->cells[i][j].up_done &&
+                    1 == W->cells[i][j].diag_done &&
+                    1 == W->cells[i][j].left_done) {
                         /* Mark all possible paths as "not done" for
                            future visits */
                         W->cells[i][j].up_done   = (W->cells[i][j].up ? 0 : 1);
