@@ -117,7 +117,7 @@ read_two_sequences_from_stream(char **s1, char **s2, FILE *in)
         check(EOF != res, "ungetc failed");
 
         /* Read the second string from the input stream */
-        char *Y = read_sequence_from_stream(in, 1);
+        char *Y = read_sequence_from_stream(in);
 
         /* Check that we didn't get an error */
         check(0 == ferror(in), "fgetc failed while reading input string 2");
