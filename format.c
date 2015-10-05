@@ -73,6 +73,9 @@ set_fmt(fmt_t f)
                 case mismatch_char_fmt:
                         printf(MISMATCH_CHAR_FMT);
                         break;
+                case no_overlap_char_fmt:
+                        printf(NO_OVERLAP_CHAR_FMT);
+                        break;
                 case gap_char_fmt:
                         printf(GAP_CHAR_FMT);
                         break;

@@ -97,11 +97,13 @@
         ANSI_FG_YELLOW ";" ANSI_BOLD            \
         ANSI_SGI_CLOSE
 
-#define MATCH_CHAR_FMT ""
+#define MATCH_CHAR_FMT OPT_PATH_FMT
 
 #define MISMATCH_CHAR_FMT MISMATCH_ARROW_FMT
 
-#define GAP_CHAR_FMT ""
+#define GAP_CHAR_FMT GAP_ARROW_FMT
+
+#define NO_OVERLAP_CHAR_FMT ""
 
 #define RESET_FMT                               \
         ANSI_CSI_OPEN                           \
@@ -124,6 +126,7 @@ typedef enum {
         gap_arrow_fmt,
         match_char_fmt,
         mismatch_char_fmt,
+        no_overlap_char_fmt,
         gap_char_fmt
 } fmt_t;
 
